@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import sys
 
-from PySide6.QtCore import QDateTime, QLibraryInfo, QLocale, QProcess, QTranslator, Qt, QTimer, QSize, QRectF
+from PySide6.QtCore import QLibraryInfo, QLocale, QProcess, QTranslator, Qt, QTimer, QSize, QRectF
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtSvg import QSvgRenderer
@@ -191,10 +191,6 @@ class Home(QWidget):
         self.website_button.setAccessibleName("Vereinswebseite öffnen")
         self.website_button.clicked.connect(lambda: self.launch("club"))
         header.addWidget(self.website_button)
-        header.addSpacing(12)
-        self.clock = QLabel()
-        self.clock.setStyleSheet("font-size: 22px; font-weight: 600;")
-        header.addWidget(self.clock)
         layout.addLayout(header)
 
         self.device_client = DeviceClient(self, preview)
@@ -219,20 +215,9 @@ class Home(QWidget):
         self.device_client.status_changed.connect(self.update_status)
         QTimer.singleShot(800, self.device_client.refresh_status)
 
-        hero = QVBoxLayout()
-        hero.setSpacing(4)
-        self.eyebrow = QLabel("EUER VEREIN. EUER PLATZ.")
-        self.eyebrow.setStyleSheet("color: #b1bfae; font-size: 11px; letter-spacing: 3px; font-weight: 600;")
-        hero.addWidget(self.eyebrow)
-        self.headline = QLabel("Ankommen. Musik an.")
-        self.headline.setStyleSheet("font-size: 42px; font-weight: 800; letter-spacing: -1px;")
-        hero.addWidget(self.headline)
-        self.description = QLabel("Ein Klick genügt. Was möchtest du machen?")
-        self.description.setStyleSheet("font-size: 15px; color: #b8c3b9;")
-        hero.addWidget(self.description)
         if preview:
-            self.description.setText("Vorschau · Statusanzeigen mit Beispieldaten")
-        layout.addLayout(hero)
+            layout.addWidget(label("Vorschau · Statusanzeigen mit Beispieldaten",
+                                   "font-size: 15px; color: #b8c3b9;"))
 
         grid = QGridLayout()
         grid.setSpacing(14)
@@ -250,7 +235,8 @@ class Home(QWidget):
             self.tiles[action] = tile
             grid.addWidget(tile, i // 3, i % 3)
         layout.addLayout(grid, 1)
-        self.feedback = QLabel("Zurück geht’s jederzeit über „Startseite“ in der oberen Leiste.")
+        self.feedback = QLabel()
+        self.feedback.hide()
         self.feedback.setStyleSheet("color: #a6b5a7; font-size: 12px;")
         self.feedback.setWordWrap(True)
         layout.addWidget(self.feedback)
@@ -266,10 +252,6 @@ class Home(QWidget):
             button.clicked.connect(lambda checked=False, a=action: self.power(a))
             footer.addWidget(button)
         layout.addLayout(footer)
-        self.clock_timer = QTimer(self)
-        self.clock_timer.timeout.connect(self.tick)
-        self.clock_timer.start(1000)
-        self.tick()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -277,16 +259,8 @@ class Home(QWidget):
         painter.end()
 
     def resizeEvent(self, event):
-        compact = self.height() < 700
-        self.eyebrow.setVisible(not compact)
-        self.description.setVisible(not compact or self.preview)
-        self.headline.setStyleSheet(
-            f"font-size: {26 if compact else 36}px; font-weight: 800; letter-spacing: -1px;")
         self.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12, 24 if self.width() < 1000 else 40, 14)
         super().resizeEvent(event)
-
-    def tick(self):
-        self.clock.setText(QDateTime.currentDateTime().toString("HH:mm"))
 
     def update_status(self, status):
         values = status_labels(status)
@@ -318,19 +292,23 @@ class Home(QWidget):
             return
         if self.preview:
             title = "Vereinswebseite" if action == "club" else self.tiles[action].accessibleName()
-            self.feedback.setText(f"Vorschau: „{title}“ gewählt. Es wird keine App gestartet.")
+            self.set_feedback(f"Vorschau: „{title}“ gewählt. Es wird keine App gestartet.")
             return
         command = self.command_for(action)
         if not shutil.which(command[0]):
-            self.feedback.setText("Diese Anwendung fehlt. Bitte die Vereinsadministration kontaktieren.")
+            self.set_feedback("Diese Anwendung fehlt. Bitte die Vereinsadministration kontaktieren.")
             return
         process = QProcess(self)
         # GUI applications must not inherit cloud-init's or a terminal's session env.
         self.processes.append(process)
-        process.errorOccurred.connect(lambda _: self.feedback.setText("Die Anwendung konnte nicht gestartet werden."))
+        process.errorOccurred.connect(lambda _: self.set_feedback("Die Anwendung konnte nicht gestartet werden."))
         process.finished.connect(lambda code, status, p=process: self.app_finished(p, code, status))
         process.start(command[0], command[1:])
-        self.feedback.setText("App wird geöffnet. Über „Startseite“ kommst du wieder hierher.")
+        self.set_feedback("")
+
+    def set_feedback(self, text):
+        self.feedback.setText(text)
+        self.feedback.setVisible(bool(text))
 
     def open_device(self, action):
         sheet = {"wifi": WifiSheet, "bluetooth": BluetoothSheet, "sound": AudioSheet}[action](
@@ -340,7 +318,7 @@ class Home(QWidget):
 
     def app_finished(self, process, code, status):
         if code != 0:
-            self.feedback.setText("Die App wurde mit einem Fehler beendet. Bitte erneut versuchen.")
+            self.set_feedback("Die App wurde mit einem Fehler beendet. Bitte erneut versuchen.")
         if process in self.processes:
             self.processes.remove(process)
         process.deleteLater()
@@ -364,13 +342,13 @@ class Home(QWidget):
             return
         self.last_action = action
         if self.preview:
-            self.feedback.setText(f"Vorschau: {title} bestätigt. Dieser Rechner bleibt unverändert.")
+            self.set_feedback(f"Vorschau: {title} bestätigt. Dieser Rechner bleibt unverändert.")
             return
         process = QProcess(self)
         self.processes.append(process)
-        process.finished.connect(lambda code, status: self.feedback.setText(
+        process.finished.connect(lambda code, status: self.set_feedback(
             "Aktion läuft …" if code == 0 else "Aktion nicht möglich. Bitte laufende Updates prüfen."))
-        process.errorOccurred.connect(lambda _: self.feedback.setText("Aktion konnte nicht ausgeführt werden."))
+        process.errorOccurred.connect(lambda _: self.set_feedback("Aktion konnte nicht ausgeführt werden."))
         process.start("systemctl", [action])
 
     def reveal(self):
