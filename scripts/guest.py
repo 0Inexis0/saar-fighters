@@ -2,11 +2,14 @@
 """Execute a command in the dedicated test VM through its QEMU agent."""
 import base64
 import json
+import os
 import subprocess
 import sys
 import time
 
-DOMAIN = "saar-fighters-os"
+DOMAIN = os.environ.get("SAAR_VM", "saar-fighters-os")
+if not DOMAIN.startswith("saar-"):
+    raise SystemExit("Only explicitly named Saar-Fighters test VMs are supported")
 
 
 def call(data):

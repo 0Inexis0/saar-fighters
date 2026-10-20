@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Saar-Fighters installieren
+Comment=Vereinsoberfläche auf diesem Rechner installieren
+Exec=/usr/bin/python /opt/saar-fighters/installer/ui.py
+Icon=system-software-install
+Categories=System;
+Terminal=false

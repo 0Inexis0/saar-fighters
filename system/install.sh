@@ -2,7 +2,11 @@
 # Deploy the shell to an already installed Arch test VM.
 set -euo pipefail
 [[ $EUID == 0 ]] || { echo "Run as root inside the VM."; exit 1; }
-systemd-detect-virt --vm --quiet || { echo "This prototype installer only supports VMs."; exit 1; }
+if [[ ${1:-} == --image && -e /etc/saar-live && -e /etc/mkinitcpio.conf.d/archiso.conf ]]; then
+    : # Clean image root prepared by iso/configure-live.sh.
+else
+    systemd-detect-virt --vm --quiet || { echo "Use the live ISO installer on physical machines."; exit 1; }
+fi
 [[ -f /var/lib/saar-base-ready ]] || { echo "Base provisioning is incomplete."; exit 1; }
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ $root == /opt/saar-fighters ]] || { echo "Deploy project to /opt/saar-fighters first."; exit 1; }
@@ -19,6 +23,7 @@ printf 'LANG=de_DE.UTF-8\n' > /etc/locale.conf
 # background, without making the desktop wait for an NTP server.
 systemctl disable systemd-time-wait-sync.service
 systemctl reset-failed systemd-time-wait-sync.service || true
+mkdir -p /etc/cloud
 touch /etc/cloud/cloud-init.disabled
 install -Dm755 "$root/system/saar-update" /usr/local/libexec/saar-update
 install -Dm644 "$root/system/de.saarfighters.update.policy" /usr/share/polkit-1/actions/de.saarfighters.update.policy
@@ -119,5 +124,7 @@ polkit.addAdminRule(function(action, subject) {
     return ["unix-user:wartung"];
 });
 EOF
-flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+if [[ ${1:-} != --image ]]; then
+    flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+fi
 echo "Saar-Fighters shell installed."

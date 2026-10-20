@@ -8,9 +8,23 @@ ist Bestandteil des Projekts. Das Original-Logo stammt von der
 
 ![Saar-Fighters Startseite in der Test-VM](docs/desktop.png)
 
-**Status: VM-Prototyp, noch kein Installationsmedium für den Vereinslaptop.**
+**Status: Installierbare Live-ISO 0.1.0 mit deutscher Oberfläche.**
 Die normale Vereinsnutzung benötigt kein Terminal. Die Wartung der
 Arch-Basis übernimmt eine zuständige Person.
+
+## Auf dem Vereinslaptop installieren
+
+Die ISO startet zunächst zum Ausprobieren. Der Knopf **„Auf diesem Rechner
+installieren“** öffnet den eigenen deutschen Installer. Spotify und die
+Vereinsoberfläche sind enthalten; die Installation funktioniert ohne Internet.
+Das gewählte Ziellaufwerk wird vollständig gelöscht.
+
+Benötigt werden ein x86_64-Rechner mit mindestens 4 GB RAM, ein Laufwerk ab
+32 GB und ein USB-Stick ab 8 GB. Secure Boot ausschalten.
+Siehe [Installationsanleitung](docs/installation.md),
+[ISO-Build](docs/iso-build.md) und [ISO-Testprotokoll](docs/iso-validation.md).
+Die große ISO-Datei liegt außerhalb von Git im lokalen
+Ordner `build/releases/0.1.0/`; dieses Repository enthält den Quellcode.
 
 ## Bedienung
 
@@ -35,8 +49,9 @@ Arch-Basis übernimmt eine zuständige Person.
 
 Der Vereinsbenutzer `saar` meldet sich automatisch an und hat keine
 sudo-Rechte. Das separate Konto `wartung` dient zur Administration.
-Sein zufällig erzeugtes VM-Passwort liegt nur lokal in
-`build/vm/credentials.txt`, nicht im Repository.
+Bei der ISO-Installation wird das Wartungspasswort selbst festgelegt.
+Das zufällig erzeugte Passwort der ursprünglichen Entwicklungs-VM liegt
+nur lokal in `build/vm/credentials.txt`, nicht im Repository.
 
 ## Architektur
 
@@ -47,7 +62,8 @@ Anmelden und startet sie nach einem Absturz erneut. Ein lokaler Socket
 verhindert doppelte Instanzen.
 
 Alle Systemaktionen verwenden feste Programme und Argumentlisten. Nur
-der Update-Helfer läuft mit Adminrechten; die Oberfläche selbst bleibt
+der Update-Helfer und im Live-System der feste Installationshelfer laufen
+mit Adminrechten; die Oberfläche selbst bleibt
 unprivilegiert. Ein eigener Python-Prozess spricht über D-Bus mit NetworkManager,
 BlueZ und UPower; Audio läuft über PipeWire/PulseAudio. Er hält die Verbindung
 für Bluetooth-Suche und Kopplungsabfragen offen. WLAN-Passwörter werden über
@@ -119,9 +135,10 @@ Das Plasma-Layout wird beim ersten Login einmalig erstellt. Für eine
 bewusste erneute Anwendung den Marker
 `/home/saar/.local/state/saar-layout-v1` entfernen und neu anmelden.
 
-Der Installer ist absichtlich auf VMs beschränkt. Er schreibt ausschließlich
-in den Gast; er partitioniert keine Festplatten. Eine spätere Installation
-auf dem Vereinslaptop benötigt einen eigenen, geprüften Ablauf.
+Das Entwicklungsskript `system/install.sh` richtet nur die Oberfläche in
+der VM beziehungsweise im ISO-Build ein. Der getrennte Live-Installer unter
+`installer/` partitioniert das ausdrücklich ausgewählte Laufwerk und richtet
+ein bootfähiges System ein.
 
 ## Wartung und Grenzen
 

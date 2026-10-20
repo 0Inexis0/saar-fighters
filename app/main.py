@@ -187,6 +187,11 @@ class Home(QWidget):
         brand.setStyleSheet("font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #edaa66;")
         header.addWidget(brand)
         header.addStretch()
+        if Path("/etc/saar-live").exists() and not preview:
+            install_button = QPushButton("Auf diesem Rechner installieren")
+            install_button.setObjectName("confirm")
+            install_button.clicked.connect(lambda: self.launch("install"))
+            header.addWidget(install_button)
         self.website_button = QPushButton("Vereinswebseite  ↗")
         self.website_button.setAccessibleName("Vereinswebseite öffnen")
         self.website_button.clicked.connect(lambda: self.launch("club"))
@@ -283,6 +288,7 @@ class Home(QWidget):
             "web": ["firefox", "--new-window", "https://start.duckduckgo.com"],
             "files": ["dolphin", str(Path.home())],
             "club": ["firefox", "--new-window", CLUB_WEBSITE],
+            "install": [sys.executable, str(HERE.parent / "installer/ui.py")],
         }[action]
 
     def launch(self, action):

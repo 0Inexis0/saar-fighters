@@ -5,7 +5,7 @@ angezeigt mit GNOME Boxes. Keine Änderung der vorhandenen anderen VMs.
 
 ## Automatisiert
 
-`python -m unittest discover -s tests -v`: **31 Tests erfolgreich**.
+`python -m unittest discover -s tests -v`: **43 Tests erfolgreich**.
 
 - Alle sechs großen Kacheln reagieren auf tatsächliche Qt-Mausereignisse.
 - Der Vorschaumodus startet keine Programme oder Systemaktionen.
@@ -80,5 +80,6 @@ geprüft. Die Startseite zusätzlich bei 800×540 und 1366×768.
   des Vereinslaptops.
 - Bare-Metal-Installation und Wiederherstellung von einem USB-Stick.
 
-Die VM ist ein funktionaler Prototyp. Die Installation auf dem Vereinslaptop
-ist ein gesonderter Schritt nach dem Hardwaretest.
+Für die installierbare Live-ISO gibt es ein eigenes
+[Testprotokoll](iso-validation.md). Der Hardwaretest am Vereinslaptop bleibt
+zusätzlich erforderlich.
