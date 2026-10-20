@@ -1,10 +1,10 @@
 # Saar-Fighters OS
 
-Eine einfache Vereinsoberfläche für **Saar-Fighters AV**, auf Arch Linux.
+Eine einfache Vereinsoberfläche für **Saar-Fighters AS e.V.**, auf Arch Linux.
 Große Schaltflächen statt eines vollgepackten Desktops. Dunkles Waldgrün,
 Salbeigrün und warme Orange-Akzente; der skalierbare Gelände-Hintergrund
-ist Bestandteil des Projekts. Die Wortmarke ist ein Platzhalter für das
-offizielle Vereinslogo.
+ist Bestandteil des Projekts. Das Original-Logo stammt von der
+[Vereinswebseite](https://www.saarfighters-as.de/) (siehe [Bildnachweis](docs/assets.md)).
 
 ![Saar-Fighters Startseite in der Test-VM](docs/desktop.png)
 
@@ -17,7 +17,15 @@ Arch-Basis übernimmt eine zuständige Person.
 - Spotify: native Flatpak-App, wenn installiert; sonst Spotify im Browser.
 - Internet: Firefox.
 - Dateien: Dolphin, unter anderem für Musik und USB-Sticks.
-- WLAN, Lautstärke und Bluetooth: die passenden KDE-Einstellungen.
+- WLAN, Lautstärke und Bluetooth: eigene, einheitlich gestaltete Dialoge.
+  WLAN auswählen und Passwort eingeben; Bluetooth suchen, koppeln und verbinden;
+  Audioausgang, Lautstärke und Stummschaltung einstellen.
+- Statusleiste: Netzwerkverbindung, verbundene Bluetooth-Geräte, Netzteil und
+  Akku mit Prozentwert und Ladezustand. Fehlende Hardware und unbekannte Werte
+  werden ausdrücklich angezeigt. Details erscheinen beim Darüberfahren.
+- Vereinswebseite: direkter Knopf zur offiziellen Seite.
+- Oberfläche, Systemsprachumgebung, Qt-Dialoge und Firefox sind auf Deutsch
+  eingestellt. Spotify übernimmt die deutsche Sprachumgebung.
 - Updates: sichtbarer Fortschritt, Administratorfreigabe und ehrliche
   Erfolgs-/Fehlermeldung. Aktualisiert das komplette Arch-System und
   systemweit installierte Flatpaks.
@@ -40,13 +48,20 @@ verhindert doppelte Instanzen.
 
 Alle Systemaktionen verwenden feste Programme und Argumentlisten. Nur
 der Update-Helfer läuft mit Adminrechten; die Oberfläche selbst bleibt
-unprivilegiert. Während eines Updates blockiert ein systemd-Inhibitor
+unprivilegiert. Ein eigener Python-Prozess spricht über D-Bus mit NetworkManager,
+BlueZ und UPower; Audio läuft über PipeWire/PulseAudio. Er hält die Verbindung
+für Bluetooth-Suche und Kopplungsabfragen offen. WLAN-Passwörter werden über
+die Prozess-Eingabe und D-Bus weitergegeben, nicht als Kommandozeilenargument
+oder Logeintrag. NetworkManager speichert das Verbindungsprofil für den
+Vereinsbenutzer. Kopplungscodes müssen ausdrücklich bestätigt werden.
+Während eines Updates blockiert ein systemd-Inhibitor
 normales Herunterfahren und Suspend. Netzwerkprobleme, Paketkonflikte
 und abgebrochene Freigaben werden als Fehler behandelt.
 
 ## Lokal ansehen
 
-Benötigt Python, PySide6 und QtSvg (unter Arch: `pyside6 qt6-svg`).
+Benötigt Python, PySide6, QtSvg und dbus-next
+(unter Arch: `pyside6 qt6-svg python-dbus-next`).
 Die Vorschau verändert keine Systemeinstellungen und öffnet keine Apps.
 
 ```bash
@@ -124,11 +139,15 @@ auf dem Vereinslaptop benötigt einen eigenen, geprüften Ablauf.
   der Boxen, der Akkulaufzeit oder der Leistung des Vereinslaptops.
 - Akku-Energiesparen bleibt dem KDE-Standard überlassen. Im Netzbetrieb ist
   automatischer Suspend für das Vereinsprofil deaktiviert.
-- Für Produktion: Hardwaretest, Logo, gewünschte Startprogramme,
+- Der einfache WLAN-Dialog unterstützt sichtbare Netze mit WPA2/WPA3-Personal
+  sowie offene/OWE-Netze. Versteckte Netze, Unternehmensanmeldung (802.1X) und
+  Sonderkonfigurationen werden durch die Administration eingerichtet.
+- Für Produktion: Hardwaretest, gewünschte Startprogramme,
   Datensicherung und Wiederherstellungsmedium vervollständigen.
 
 ## Quellen
 
+- [Vereinswebseite und Original-Logo](https://www.saarfighters-as.de/)
 - [Arch-Cloud-Images](https://wiki.archlinux.org/title/Arch_Linux_on_a_VPS)
 - [Cloud-init](https://wiki.archlinux.org/title/Cloud-init)
 - [KDE Plasma Scripting](https://develop.kde.org/docs/plasma/scripting/api/)

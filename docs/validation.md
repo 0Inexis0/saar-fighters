@@ -5,7 +5,7 @@ angezeigt mit GNOME Boxes. Keine Änderung der vorhandenen anderen VMs.
 
 ## Automatisiert
 
-`python -m unittest discover -s tests -v`: **8 Tests erfolgreich**.
+`python -m unittest discover -s tests -v`: **31 Tests erfolgreich**.
 
 - Alle sechs großen Kacheln reagieren auf tatsächliche Qt-Mausereignisse.
 - Der Vorschaumodus startet keine Programme oder Systemaktionen.
@@ -21,6 +21,18 @@ angezeigt mit GNOME Boxes. Keine Änderung der vorhandenen anderen VMs.
 `bash -n` für Bootstrap, Installation, Erststart und Update-Helfer:
 erfolgreich.
 
+Zusätzliche Geräteprüfungen: keine erfundenen Akku-/Adapterwerte; Ladezustände;
+WLAN-Verschlüsselung und Passwortgrenzen; Wiederverwendung gespeicherter Profile;
+Warten auf tatsächliche Netzwerkaktivierung; D-Bus-Passwortübergabe ohne TTY;
+Teilfehler bei der Statusabfrage; Ablehnung nicht angeforderter Kopplungen;
+ausdrückliche Codebestätigung; sauberer Suchstopp und Bluetooth-Aus-/Einschalten;
+Audio-Lautstärkegrenzen; verständliche Fehler;
+fehlende Adapter deaktivieren Aktionen; Antworten nach Dialogschluss werden
+ignoriert. Hardwareantworten sind in diesen automatisierten Tests simuliert.
+
+Die drei eigenen Gerätedialoge wurden bei 1024×600 auf passende Geometrie
+geprüft. Die Startseite zusätzlich bei 800×540 und 1366×768.
+
 ## In der laufenden VM geprüft
 
 - Automatische Anmeldung als `saar`, Plasma/Wayland und Startseite.
@@ -31,9 +43,17 @@ erfolgreich.
   Fokus-Schutz nicht im Weg steht.
 - Spotify Flatpak `com.spotify.Client` installiert, Version
   `1.2.95.453.g0eeebbed`; Start über die Kachel bis zur Login-Ansicht.
-- KDE-Module `kcm_networkmanagement`, `kcm_pulseaudio` und
-  `kcm_bluetooth` sind vorhanden. Bluetooth zeigt in dieser VM korrekt
-  den fehlenden Adapter an.
+- Eigene WLAN-, Bluetooth- und Audiodialoge geöffnet. Keine Weiterleitung
+  in KDE-Einstellungsfenster. Fehlende WLAN-/Bluetooth-Adapter werden erkannt.
+- Live-Status aus NetworkManager/UPower: Kabelverbindung mit Internet,
+  kein Laptopakku, unbekannter Netzteilzustand. Keine Beispieldaten im Echtbetrieb.
+- Audio als Benutzer `saar`: vorhandenen Ausgang gelesen, Lautstärke von
+  40 auf 35 Prozent geändert, Stummschaltung gesetzt und Audioausgang gewählt.
+  Ergebnisse jeweils erneut ausgelesen; ursprüngliche Lautstärke und
+  Stummschaltung anschließend wiederhergestellt.
+- `locale -a` enthält `de_DE.utf8`; Neustart lädt die deutsche Sprachumgebung.
+  Spotify zeigt die Anmeldung auf Deutsch, Firefox nutzt die deutsche Oberfläche.
+- Original-Logo eingebunden; Webseitenknopf öffnet die Vereinswebseite.
 - Der Update-Dialog öffnet die Polkit-Abfrage für das Konto `wartung`.
   Abbrechen zeigt „Update nicht freigegeben oder abgebrochen“.
 - Der Update-Helfer wurde im Gast ausgeführt: kompletter
@@ -47,6 +67,10 @@ erfolgreich.
   Startseite sichtbar. Die Bildschirmhelligkeit blieb auf 100 %.
 
 ![Getestete Vereinsoberfläche in der VM](desktop.png)
+
+![Eigener Audiodialog in der VM](audio.png)
+
+![Eigener Bluetoothdialog ohne physischen Adapter](bluetooth.png)
 
 ## Noch nicht auf echter Hardware geprüft
 

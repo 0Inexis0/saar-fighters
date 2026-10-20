@@ -6,6 +6,15 @@ systemd-detect-virt --vm --quiet || { echo "This prototype installer only suppor
 [[ -f /var/lib/saar-base-ready ]] || { echo "Base provisioning is incomplete."; exit 1; }
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ $root == /opt/saar-fighters ]] || { echo "Deploy project to /opt/saar-fighters first."; exit 1; }
+# Existing installations also need the device worker and German translations.
+for package in python-dbus-next qt6-translations upower libpulse; do
+    pacman -Q "$package" >/dev/null 2>&1 || pacman -S --needed --noconfirm "$package"
+done
+if ! locale -a | grep -qi '^de_DE.utf8$'; then
+    grep -qxF 'de_DE.UTF-8 UTF-8' /etc/locale.gen || printf '\nde_DE.UTF-8 UTF-8\n' >> /etc/locale.gen
+    locale-gen
+fi
+printf 'LANG=de_DE.UTF-8\n' > /etc/locale.conf
 # A club laptop must boot offline too. Keep time synchronization in the
 # background, without making the desktop wait for an NTP server.
 systemctl disable systemd-time-wait-sync.service
@@ -90,6 +99,7 @@ mkdir -p /usr/lib/firefox/distribution
 cat > /usr/lib/firefox/distribution/policies.json <<'EOF'
 {
   "policies": {
+    "RequestedLocales": ["de"],
     "DisableAppUpdate": true,
     "DisableTelemetry": true,
     "DisableFirefoxStudies": true,

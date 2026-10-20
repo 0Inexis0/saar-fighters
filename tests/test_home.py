@@ -32,21 +32,25 @@ class HomeTests(unittest.TestCase):
         self.app.processEvents()
 
     def test_all_tiles_are_clickable_without_launching_in_preview(self):
-        with patch.object(QProcess, "start") as start:
+        with patch.object(QProcess, "start") as start, patch.object(self.home, "open_device") as device:
             for action, tile in self.home.tiles.items():
                 QTest.mouseClick(tile, Qt.MouseButton.LeftButton)
                 self.assertEqual(self.home.last_action, action)
-                self.assertIn("Vorschau", self.home.feedback.text())
+                if action in ("wifi", "bluetooth", "sound"):
+                    device.assert_called_with(action)
+                else:
+                    self.assertIn("Vorschau", self.home.feedback.text())
             start.assert_not_called()
 
     def test_controls_fit_small_laptop(self):
         for size in ((1024, 600), (800, 540), (1366, 768)):
             self.home.resize(*size)
             self.app.processEvents()
+            self.assertEqual((self.home.width(), self.home.height()), size)
             for tile in self.home.tiles.values():
                 self.assertTrue(self.home.rect().contains(tile.geometry()))
                 self.assertGreaterEqual(tile.width(), 170)
-                self.assertGreaterEqual(tile.height(), 113)
+                self.assertGreaterEqual(tile.height(), 104)
             self.assertTrue(self.home.rect().contains(self.home.update_button.geometry()))
 
     def choose_power(self, confirm):

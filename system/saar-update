@@ -2,6 +2,7 @@
 set -euo pipefail
 [[ $# == 0 && $EUID == 0 ]] || { echo "Nur über die Update-Schaltfläche starten."; exit 1; }
 export PATH=/usr/bin:/bin
+export LANG=de_DE.UTF-8 LC_ALL=de_DE.UTF-8 LANGUAGE=de
 # Holding an inhibitor prevents accidental shutdown during package replacement.
 if [[ ${SAAR_UPDATE_INHIBITED:-0} != 1 ]]; then
     export SAAR_UPDATE_INHIBITED=1

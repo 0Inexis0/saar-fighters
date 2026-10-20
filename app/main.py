@@ -6,18 +6,21 @@ from pathlib import Path
 import shutil
 import sys
 
-from PySide6.QtCore import QDateTime, QProcess, QProcessEnvironment, Qt, QTimer, QSize, QRectF
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap, QPen
+from PySide6.QtCore import QDateTime, QLibraryInfo, QLocale, QProcess, QTranslator, Qt, QTimer, QSize, QRectF
+from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
     QMessageBox, QPlainTextEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
+from devices import AudioSheet, BluetoothSheet, DeviceClient, WifiSheet, label
+from hardware import status_labels
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "assets"
 SOCKET = f"saar-home-{os.getuid()}"
+CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 
 PATHS = {
     "music": '<path d="M9 18V5l12-3v13M9 8l12-3"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="18" cy="15" rx="3" ry="2"/>',
@@ -30,6 +33,8 @@ PATHS = {
     "power": '<path d="M12 2v10M6 5a9 9 0 1 0 12 0"/>',
     "restart": '<path d="M4 9a9 9 0 1 1 1 9M4 3v6h6"/>',
     "home": '<path d="M3 11l9-8 9 8M6 9v12h5v-7h3v7h4V9"/>',
+    "battery": '<rect x="2" y="6" width="18" height="12" rx="2"/><path d="M23 10v4M6 9v6M10 9v6M14 9v6"/>',
+    "charger": '<path d="M8 2v5m8-5v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/>',
 }
 
 
@@ -51,12 +56,12 @@ class Tile(QPushButton):
         super().__init__()
         self.setObjectName("primaryTile" if accent else "tile")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumSize(170, 113)
+        self.setMinimumSize(170, 104)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setAccessibleName(title)
         self.setAccessibleDescription(subtitle)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 18, 24, 16)
+        layout.setContentsMargins(20, 12, 20, 12)
         top = QHBoxLayout()
         image = QLabel()
         image.setPixmap(icon(symbol, "#152118" if accent else "#edaa66", 32).pixmap(QSize(32, 32)))
@@ -72,6 +77,7 @@ class Tile(QPushButton):
         text.setStyleSheet(f"color: {'#102318' if accent else '#f3f3eb'};")
         layout.addWidget(text)
         sub = QLabel(subtitle)
+        sub.setWordWrap(True)
         sub.setObjectName("tileSubtitle")
         sub.setStyleSheet(f"color: {'#304b37' if accent else '#a8b5ae'};")
         layout.addWidget(sub)
@@ -170,32 +176,62 @@ class Home(QWidget):
         self.last_action = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(48, 24, 48, 22)
-        layout.setSpacing(16)
+        layout.setSpacing(10)
         header = QHBoxLayout()
-        brand = QLabel("SF  /  SAAR-FIGHTERS AV")
-        brand.setStyleSheet("font-size: 15px; font-weight: 800; letter-spacing: 2px; color: #edaa66;")
+        logo = QLabel()
+        logo.setPixmap(QPixmap(str(ASSETS / "club-logo.gif")).scaled(
+            56, 56, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        logo.setAccessibleName("Original-Logo der Saar-Fighters AS")
+        header.addWidget(logo)
+        brand = QLabel("SAAR-FIGHTERS\nAS e.V.")
+        brand.setStyleSheet("font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #edaa66;")
         header.addWidget(brand)
         header.addStretch()
-        self.network = QLabel("Verbindung wird geprüft")
-        self.network.setStyleSheet("font-size: 13px; color: #bdc9bf;")
-        header.addWidget(self.network)
-        header.addSpacing(25)
+        self.website_button = QPushButton("Vereinswebseite  ↗")
+        self.website_button.setAccessibleName("Vereinswebseite öffnen")
+        self.website_button.clicked.connect(lambda: self.launch("club"))
+        header.addWidget(self.website_button)
+        header.addSpacing(12)
         self.clock = QLabel()
         self.clock.setStyleSheet("font-size: 22px; font-weight: 600;")
         header.addWidget(self.clock)
         layout.addLayout(header)
 
+        self.device_client = DeviceClient(self, preview)
+        self.status_values = []
+        status_row = QHBoxLayout()
+        status_row.setSpacing(8)
+        for title, symbol in (("Netzwerk", "wifi"), ("Bluetooth", "bluetooth"),
+                              ("Netzteil", "charger"), ("Akku", "battery")):
+            frame = QFrame()
+            frame.setObjectName("statusChip")
+            box = QVBoxLayout(frame)
+            box.setContentsMargins(12, 7, 12, 7)
+            box.setSpacing(2)
+            box.addWidget(label(title, "font-size: 10px; color: #a6b5a7;"))
+            value = label("Wird geprüft …", "font-size: 12px; font-weight: 600;")
+            value.setMinimumWidth(0)
+            box.addWidget(value)
+            status_row.addWidget(frame, 1)
+            self.status_values.append(value)
+        layout.addLayout(status_row)
+        self.network = self.status_values[0]
+        self.device_client.status_changed.connect(self.update_status)
+        QTimer.singleShot(800, self.device_client.refresh_status)
+
         hero = QVBoxLayout()
         hero.setSpacing(4)
-        eyebrow = QLabel("EUER VEREIN. EUER PLATZ.")
-        eyebrow.setStyleSheet("color: #b1bfae; font-size: 11px; letter-spacing: 3px; font-weight: 600;")
-        hero.addWidget(eyebrow)
+        self.eyebrow = QLabel("EUER VEREIN. EUER PLATZ.")
+        self.eyebrow.setStyleSheet("color: #b1bfae; font-size: 11px; letter-spacing: 3px; font-weight: 600;")
+        hero.addWidget(self.eyebrow)
         self.headline = QLabel("Ankommen. Musik an.")
         self.headline.setStyleSheet("font-size: 42px; font-weight: 800; letter-spacing: -1px;")
         hero.addWidget(self.headline)
         self.description = QLabel("Ein Klick genügt. Was möchtest du machen?")
         self.description.setStyleSheet("font-size: 15px; color: #b8c3b9;")
         hero.addWidget(self.description)
+        if preview:
+            self.description.setText("Vorschau · Statusanzeigen mit Beispieldaten")
         layout.addLayout(hero)
 
         grid = QGridLayout()
@@ -233,17 +269,7 @@ class Home(QWidget):
         self.clock_timer = QTimer(self)
         self.clock_timer.timeout.connect(self.tick)
         self.clock_timer.start(1000)
-        self.net_timer = QTimer(self)
-        self.net_timer.timeout.connect(self.refresh_network)
-        self.net_timer.start(15000)
-        self.net_process = QProcess(self)
-        environment = QProcessEnvironment.systemEnvironment()
-        environment.insert("LC_ALL", "C")
-        self.net_process.setProcessEnvironment(environment)
-        self.net_process.finished.connect(self.network_result)
-        self.net_process.errorOccurred.connect(lambda _: self.network.setText("Netzwerkstatus nicht verfügbar"))
         self.tick()
-        self.refresh_network()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -251,37 +277,28 @@ class Home(QWidget):
         painter.end()
 
     def resizeEvent(self, event):
-        compact = self.height() < 650
+        compact = self.height() < 700
+        self.eyebrow.setVisible(not compact)
+        self.description.setVisible(not compact or self.preview)
         self.headline.setStyleSheet(
-            f"font-size: {30 if compact else 42}px; font-weight: 800; letter-spacing: -1px;")
-        self.layout().setContentsMargins(28 if self.width() < 1000 else 48, 20, 28 if self.width() < 1000 else 48, 18)
+            f"font-size: {26 if compact else 36}px; font-weight: 800; letter-spacing: -1px;")
+        self.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12, 24 if self.width() < 1000 else 40, 14)
         super().resizeEvent(event)
 
     def tick(self):
         self.clock.setText(QDateTime.currentDateTime().toString("HH:mm"))
 
-    def refresh_network(self):
-        if self.preview:
-            self.network.setText("●  Design-Vorschau")
-        elif self.net_process.state() == QProcess.ProcessState.NotRunning:
-            self.net_process.start("nmcli", ["-t", "-f", "STATE", "general"])
-            QTimer.singleShot(5000, self.network_timeout)
-
-    def network_timeout(self):
-        if self.net_process.state() != QProcess.ProcessState.NotRunning:
-            self.net_process.kill()
-            self.network.setText("Netzwerkstatus nicht verfügbar")
-
-    def network_result(self, code, status):
-        value = bytes(self.net_process.readAllStandardOutput()).decode().strip()
-        if code:
-            self.network.setText("Netzwerkstatus nicht verfügbar")
-        elif value == "connected":
-            self.network.setText("●  Netzwerk verbunden")
-        elif value in ("connected (local only)", "connected (site only)"):
-            self.network.setText("●  Verbindung eingeschränkt")
-        else:
-            self.network.setText("○  Offline · WLAN öffnen")
+    def update_status(self, status):
+        values = status_labels(status)
+        for widget, text, prefix in zip(self.status_values, values, ("", "Bluetooth", "Netzteil", "Akku")):
+            widget.setText(text.removeprefix(prefix).lstrip(": ") if prefix else text)
+        network = status.get("network", {})
+        connectivity = {0: "Internetstatus nicht geprüft", 1: "Kein Internet",
+                        2: "Anmeldung im Browser erforderlich", 3: "Internet eingeschränkt",
+                        4: "Internet erreichbar"}.get(network.get("connectivity", 0), "")
+        self.network.setToolTip(network.get("name", "") + "\n" + connectivity)
+        names = [d["name"] for d in status.get("bluetooth", {}).get("devices", []) if d.get("connected")]
+        self.status_values[1].setToolTip("\n".join(names))
 
     def command_for(self, action):
         if action == "spotify":
@@ -291,15 +308,17 @@ class Home(QWidget):
         return {
             "web": ["firefox", "--new-window", "https://start.duckduckgo.com"],
             "files": ["dolphin", str(Path.home())],
-            "wifi": ["kcmshell6", "kcm_networkmanagement"],
-            "sound": ["kcmshell6", "kcm_pulseaudio"],
-            "bluetooth": ["kcmshell6", "kcm_bluetooth"],
+            "club": ["firefox", "--new-window", CLUB_WEBSITE],
         }[action]
 
     def launch(self, action):
         self.last_action = action
+        if action in ("wifi", "bluetooth", "sound"):
+            self.open_device(action)
+            return
         if self.preview:
-            self.feedback.setText(f"Vorschau: „{self.tiles[action].accessibleName()}“ gewählt. Es wird keine App gestartet.")
+            title = "Vereinswebseite" if action == "club" else self.tiles[action].accessibleName()
+            self.feedback.setText(f"Vorschau: „{title}“ gewählt. Es wird keine App gestartet.")
             return
         command = self.command_for(action)
         if not shutil.which(command[0]):
@@ -312,6 +331,12 @@ class Home(QWidget):
         process.finished.connect(lambda code, status, p=process: self.app_finished(p, code, status))
         process.start(command[0], command[1:])
         self.feedback.setText("App wird geöffnet. Über „Startseite“ kommst du wieder hierher.")
+
+    def open_device(self, action):
+        sheet = {"wifi": WifiSheet, "bluetooth": BluetoothSheet, "sound": AudioSheet}[action](
+            self, self.device_client)
+        sheet.exec()
+        sheet.deleteLater()
 
     def app_finished(self, process, code, status):
         if code != 0:
@@ -379,9 +404,20 @@ QPushButton#primaryTile:focus { border: 2px solid #ffffff; }
 QLabel#tileTitle { font-size: 24px; font-weight: 750; }
 QLabel#tileSubtitle { font-size: 12px; font-weight: 400; }
 QDialog, QMessageBox { background: #18271f; }
+QDialog#deviceSheet { background: #18271f; border: 1px solid #64745b; border-radius: 18px; }
+QFrame#statusChip { background: rgba(28, 45, 36, 220); border: 1px solid #435346; border-radius: 10px; }
+QListWidget { background: #111f18; border: 1px solid #435346; border-radius: 12px; padding: 6px; outline: none; }
+QListWidget::item { padding: 8px 14px; border-radius: 9px; color: #e3e9dc; }
+QListWidget::item:selected { background: #354d38; color: #f1f5e9; border: 1px solid #b8d79a; }
+QLineEdit { background: #101d16; border: 1px solid #63765c; border-radius: 9px; padding: 12px; }
+QLineEdit:focus { border-color: #edaa66; }
+QSlider::groove:horizontal { height: 8px; border-radius: 4px; background: #35483a; }
+QSlider::sub-page:horizontal { background: #b8d79a; border-radius: 4px; }
+QSlider::handle:horizontal { width: 26px; margin: -10px 0; border-radius: 12px; background: #edaa66; }
 QPlainTextEdit { background: #101b15; color: #caddc3; border: 1px solid #465b49;
                  border-radius: 8px; font-family: monospace; font-size: 12px; padding: 8px; }
 QPushButton#confirm { background: #b8d79a; color: #17261c; }
+QPushButton#confirm:disabled { background: #28372d; color: #7e8c81; border-color: #3c4d40; }
 """
 
 
@@ -392,6 +428,10 @@ def main():
     parser.add_argument("--size", default="1280x800")
     args = parser.parse_args()
     app = QApplication(sys.argv[:1])
+    QLocale.setDefault(QLocale("de_DE"))
+    translator = QTranslator()
+    if translator.load("qtbase_de", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+        app.installTranslator(translator)
     app.setApplicationName("saar-home")
     app.setDesktopFileName("de.saarfighters.Home")
     app.setStyle("Fusion")
@@ -411,6 +451,7 @@ def main():
         if not server.listen(SOCKET):
             raise SystemExit("Could not create user-local launcher socket")
     window = Home(args.preview or bool(args.screenshot))
+    app.aboutToQuit.connect(window.device_client.stop)
     if server:
         def reveal():
             peer = server.nextPendingConnection()
@@ -430,8 +471,14 @@ def main():
             if not window.grab().save(str(args.screenshot)):
                 raise RuntimeError("Could not save screenshot")
             app.quit()
-        QTimer.singleShot(600, capture)
-    return app.exec()
+        QTimer.singleShot(1100, capture)
+    result = app.exec()
+    window.device_client.stop()
+    # Dispose the widget tree while QApplication and Python callbacks are alive.
+    import shiboken6
+    shiboken6.delete(window)
+    app.removeTranslator(translator)
+    return result
 
 
 if __name__ == "__main__":
