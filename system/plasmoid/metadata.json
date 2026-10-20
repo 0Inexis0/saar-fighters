@@ -1,0 +1,14 @@
+{
+  "KPlugin": {
+    "Id": "de.saarfighters.home",
+    "Name": "Saar-Fighters Startseite",
+    "Description": "Ein Klick zurück zur Vereinsoberfläche",
+    "Icon": "go-home",
+    "Version": "0.1.0",
+    "License": "MIT",
+    "Authors": [{"Name": "Saar-Fighters OS contributors"}],
+    "Category": "Application Launchers"
+  },
+  "KPackageStructure": "Plasma/Applet",
+  "X-Plasma-API-Minimum-Version": "6.0"
+}
