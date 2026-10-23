@@ -112,6 +112,9 @@ def install_checkout(checkout, revision, root=Path("/")):
     project = root / "opt/saar-fighters"
     if not project.is_dir() or project.is_symlink():
         raise RuntimeError("Installierte Vereinsoberfläche fehlt oder ist kein Verzeichnis")
+    version_file = project / ".revision"
+    if version_file.is_file() and version_file.read_text().strip() == revision:
+        return False
     with tempfile.TemporaryDirectory(prefix="prepare-", dir=state) as temp:
         payload = Path(temp) / "project"
         payload.mkdir()
@@ -167,6 +170,7 @@ def install_checkout(checkout, revision, root=Path("/")):
             remove(backup)
             remove(staged)
         (state / "recovery.json").unlink()
+    return True
 
 
 def main():
@@ -184,8 +188,11 @@ def main():
         if check_only:
             report("Prüfung erfolgreich. Es wurde nichts installiert.")
             return
-        install_checkout(checkout, revision)
-    report(f"Saar-Fighters {revision[:12]} installiert. Oberfläche und Taskleiste werden beim Neustart aktiviert.")
+        installed = install_checkout(checkout, revision)
+    if installed:
+        report(f"Saar-Fighters {revision[:12]} installiert. Oberfläche und Taskleiste werden beim Neustart aktiviert.")
+    else:
+        report(f"Saar-Fighters {revision[:12]} ist bereits aktuell.")
 
 
 if __name__ == "__main__":

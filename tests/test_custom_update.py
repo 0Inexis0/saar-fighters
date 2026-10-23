@@ -46,6 +46,11 @@ class CustomUpdateTests(unittest.TestCase):
         self.assertFalse((self.state / "recovery.json").exists())
         self.assertEqual((user / "kdeglobals").read_text(), "personal settings")
 
+    def test_same_version_preserves_recovery_copy(self):
+        self.assertTrue(update.install_checkout(self.checkout, "a" * 40, self.root))
+        self.assertFalse(update.install_checkout(self.checkout, "a" * 40, self.root))
+        self.assertEqual((self.state / "previous/old-version").read_text(), "working version")
+
     def test_mid_install_failure_restores_all_old_files(self):
         rename = Path.rename
         def fail(source, destination):
