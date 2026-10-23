@@ -15,10 +15,11 @@ Es ist für die vom Verein angefragte Vereinsoberfläche eingebunden.
 `terrain.svg` und die programmgenerierten Bedienungssymbole sind eigene
 Bestandteile dieses Projekts.
 
-Die Aktionsbuttons verwenden die installierten Original-App-Icons von Spotify,
-Firefox und Dolphin sowie die KDE/Breeze-System-Icons für WLAN, Audio, Bluetooth
-und Systemaktionen. Diese werden über das Icon-Theme einschließlich der
-Flatpak-Exporte geladen und nicht als eigene Markenzeichnungen nachgebaut.
-Die Originaldateien und ihre Lizenzen bleiben Bestandteil der jeweiligen
-installierten Pakete. Ohne installiertes App-Icon wird für lokale Vorschauen
-auf das eigene Bedienungssymbol zurückgegriffen.
+Spotify und Firefox verwenden weiterhin ihre installierten Original-App-Logos.
+Die übrigen Aktionsbuttons verwenden mitgelieferte **Fluent UI System Icons**
+von Microsoft (MIT-Lizenz), mit unveränderter Geometrie und angepassten
+Olive-/Khaki-Farben. Quelle, exakte Revision und Lizenz liegen unter
+`app/assets/fluent/NOTICE.md` und `app/assets/fluent/LICENSE` und werden mit
+jedem Update ausgeliefert. Damit hängt ihr Aussehen nicht vom Desktop-Theme ab.
+
+Quelle: https://github.com/microsoft/fluentui-system-icons
