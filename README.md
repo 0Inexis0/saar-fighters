@@ -22,7 +22,7 @@ Das gewählte Ziellaufwerk wird vollständig gelöscht.
 Benötigt werden ein x86_64-Rechner mit mindestens 4 GB RAM, ein Laufwerk ab
 32 GB und ein USB-Stick ab 8 GB. Secure Boot ausschalten.
 Siehe [Installationsanleitung](docs/installation.md),
-[ISO-Build](docs/iso-build.md) und [ISO-Testprotokoll](docs/iso-validation.md).
+[ISO-Build](docs/iso-build.md) und [ISO-Testprotokoll](docs/iso-validation-0.2.0.md).
 Die große ISO-Datei liegt außerhalb von Git im lokalen
 Ordner `build/releases/0.2.0/`; dieses Repository enthält den Quellcode.
 

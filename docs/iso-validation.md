@@ -1,5 +1,9 @@
 # ISO-Testprotokoll
 
+Aktueller Stand: [ISO 0.2.0, gebaut und geprüft am 23. Oktober 2026](iso-validation-0.2.0.md).
+
+## Historisch: ISO 0.1.0
+
 Build und Prüfung am 20. Oktober 2026.
 
 | Merkmal | Ergebnis |

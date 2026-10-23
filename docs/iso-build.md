@@ -5,6 +5,8 @@ als Grundlage für BIOS- und UEFI-Boot. Die Pakete werden frisch installiert.
 Die Festplatte einer Entwicklungs-VM und deren Benutzerprofile sind **nicht**
 die Quelle für das ISO-Dateisystem.
 
+Aktuell geprüfter Build: [0.2.0](iso-validation-0.2.0.md).
+
 ## Build in einer eigenen Arch-VM
 
 Root-Rechte werden ausschließlich in der Build-VM benötigt. Internetzugang
@@ -65,3 +67,7 @@ SAAR_VM=saar-iso-test-uefi python scripts/guest.py 'lsblk -f'
 ```
 
 VM-Passwörter, Build-Verzeichnisse und ISO-Dateien bleiben außerhalb von Git.
+
+Für eine neue Version ohne Überschreiben der bisherigen Teststände einen eigenen
+Namen verwenden, zum Beispiel `--name saar-020-uefi` beziehungsweise
+`--name saar-020-bios`.

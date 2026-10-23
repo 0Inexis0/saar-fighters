@@ -19,8 +19,13 @@ checks["normal_initramfs"] = not P("/etc/mkinitcpio.conf.d/archiso.conf").exists
 checks["german_locale"] = "de_DE.utf8" in command("locale", "-a").stdout
 checks["sddm_running"] = command("systemctl", "is-active", "sddm").returncode == 0
 checks["networkmanager_running"] = command("systemctl", "is-active", "NetworkManager").returncode == 0
-checks["home_running"] = command("runuser", "-u", "saar", "--", "env", "XDG_RUNTIME_DIR=/run/user/1000",
- "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus", "systemctl", "--user", "is-active", "saar-home").returncode == 0
+saar_uid = command("id", "-u", "saar").stdout.strip()
+checks["home_running"] = command("runuser", "-u", "saar", "--", "env", f"XDG_RUNTIME_DIR=/run/user/{saar_uid}",
+ f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{saar_uid}/bus", "systemctl", "--user", "is-active", "saar-home").returncode == 0
+checks["custom_updater_installed"] = P("/usr/local/libexec/saar-update-custom.py").is_file()
+checks["public_updates_without_login"] = "https://github.com/0Inexis0/saar-fighters-updates.git" in P("/usr/local/libexec/saar-update-custom.py").read_text() if checks["custom_updater_installed"] else False
+checks["modern_icons_present"] = all(P("/opt/saar-fighters/app/assets/fluent", name + ".svg").is_file() for name in ("folder", "wifi", "sound", "bluetooth"))
+checks["git_installed"] = command("git", "--version").returncode == 0
 checks["spotify_installed"] = command("flatpak", "info", "--system", "com.spotify.Client").returncode == 0
 runtime = P("/var/lib/flatpak/runtime/org.freedesktop.Platform/x86_64")
 checks["flatpak_runtime_executable"] = any(os.access(p, os.X_OK) for p in runtime.glob("*/active/files/bin/ldconfig"))
