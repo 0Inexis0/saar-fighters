@@ -6,7 +6,7 @@ UEFI und älteres BIOS werden unterstützt. Secure Boot muss ausgeschaltet sein.
 Die Installation ersetzt das gewählte Laufwerk vollständig; Dual-Boot,
 Verschlüsselung und die Übernahme bestehender Benutzerdaten sind nicht enthalten.
 
-Auf bereits installiertem Arch steht zusätzlich der [Einzeiler](../README.md#auf-einem-bereits-installierten-arch-einrichten)
+Auf bereits installiertem Arch steht zusätzlich der [Einzeiler](../README.md#loslegen)
 zur Verfügung. Er richtet die Oberfläche ein, ohne Laufwerke zu formatieren.
 
 ## Vorbereiten und ausprobieren
