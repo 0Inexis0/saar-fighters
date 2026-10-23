@@ -17,7 +17,7 @@ iso_name="saar-fighters-os"
 iso_label="SAAR_$(date +%Y%m%d)"
 iso_publisher="Saar-Fighters AS e.V."
 iso_application="Saar-Fighters OS ausprobieren und installieren"
-iso_version="0.1.0-$(date +%Y.%m.%d)"
+iso_version="0.2.0-$(date +%Y.%m.%d)"
 install_dir="saar"
 airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '10' '-b' '1M' '-processors' '4')
 PROFILE

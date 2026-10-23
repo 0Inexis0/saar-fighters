@@ -22,6 +22,7 @@ parted
 rsync
 squashfs-tools
 sudo
+git
 qemu-guest-agent
 spice-vdagent
 networkmanager

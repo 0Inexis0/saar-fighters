@@ -8,7 +8,7 @@ ist Bestandteil des Projekts. Das Original-Logo stammt von der
 
 ![Saar-Fighters Startseite in der Test-VM](docs/desktop.png)
 
-**Status: Installierbare Live-ISO 0.1.0 mit deutscher Oberfläche.**
+**Status: Installierbare Live-ISO 0.2.0 mit deutscher Oberfläche.**
 Die normale Vereinsnutzung benötigt kein Terminal. Die Wartung der
 Arch-Basis übernimmt eine zuständige Person.
 
@@ -24,7 +24,29 @@ Benötigt werden ein x86_64-Rechner mit mindestens 4 GB RAM, ein Laufwerk ab
 Siehe [Installationsanleitung](docs/installation.md),
 [ISO-Build](docs/iso-build.md) und [ISO-Testprotokoll](docs/iso-validation.md).
 Die große ISO-Datei liegt außerhalb von Git im lokalen
-Ordner `build/releases/0.1.0/`; dieses Repository enthält den Quellcode.
+Ordner `build/releases/0.2.0/`; dieses Repository enthält den Quellcode.
+
+## Auf einem bereits installierten Arch einrichten
+
+Im Terminal des vorgesehenen Vereinsrechners:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0Inexis0/saar-fighters-updates/main/system/setup-arch.sh | sudo bash
+```
+
+Benötigt installiertes Arch Linux x86_64, Internet, `curl` und sudo-Rechte.
+Der Einzeiler fragt vor Änderungen nach `EINRICHTEN`, installiert die Pakete
+inklusive Spotify und lässt dich ein eigenes Wartungspasswort setzen. Er
+formatiert keine Laufwerke. SDDM, automatische Anmeldung als `saar`, deutsche
+Systemsprache und NetworkManager werden für den nächsten Start eingerichtet.
+Bestehende Benutzer und persönliche Dateien bleiben erhalten. Für ein normales
+Arbeitsgerät diese Änderungen an Anmeldung und Netzwerk bewusst berücksichtigen.
+Konfigurationssicherungen liegen unter `/var/lib/saar-setup-backups/`.
+Vorhandene fremde Konten namens `saar`/`wartung` werden nicht übernommen.
+Nach erfolgreicher Einrichtung selbst neu starten.
+
+Für einen leeren Rechner stattdessen die ISO auf einen USB-Stick schreiben
+und den grafischen Installer verwenden: [Installation](docs/installation.md).
 
 ## Bedienung
 
@@ -162,8 +184,8 @@ ein bootfähiges System ein.
   Dateiaustausch fehl, wird er zurückgerollt. System-/Flatpak-Updates werden dabei
   nicht zurückgerollt. Ein Stromausfall während des Austauschs erfordert eine
   Prüfung durch die Administration anhand von `recovery.json` im selben Ordner.
-- Bestehende Installationen benötigen einmalig den neuen Update-Helfer; danach
-  aktualisiert dieser auch sich selbst. Die bisherige ISO enthält ihn noch nicht.
+- Bestehende Installationen mit ISO 0.1.0 benötigen einmalig den neuen Update-Helfer;
+  danach aktualisiert dieser auch sich selbst. Ab ISO 0.2.0 ist er enthalten.
   `python system/update_custom.py --check` lädt und prüft GitHub ohne Installation.
 - Keine automatische Update- oder Neustartpflicht während der Musiknutzung.
 - Das Vereinskonto ist eine Bedienungserleichterung, kein manipulationssicherer

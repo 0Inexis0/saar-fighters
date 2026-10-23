@@ -11,10 +11,13 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("iso", type=Path)
 parser.add_argument("--firmware", choices=["bios", "uefi"], required=True)
+parser.add_argument("--name", help="Unique saar- test VM name for a new release")
 parser.add_argument("--offline", action="store_true", help="Start with the virtual network cable disconnected")
 args = parser.parse_args()
 iso = args.iso.resolve(strict=True)
-name = "saar-iso-test-" + args.firmware
+name = args.name or "saar-iso-test-" + args.firmware
+if not name.startswith("saar-") or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in name):
+    raise SystemExit("Test name must start with saar- and contain only lowercase letters, digits and hyphens")
 existing = subprocess.run(["virsh", "-c", "qemu:///session", "dominfo", name], capture_output=True)
 if existing.returncode == 0:
     raise SystemExit("Test-VM existiert bereits. Zuerst den vorhandenen Teststand prüfen.")

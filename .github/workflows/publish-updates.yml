@@ -27,7 +27,7 @@ jobs:
         working-directory: source
         run: |
           python -m unittest discover -s tests -v
-          bash -n system/saar-update system/install.sh system/first-login.sh
+          bash -n system/setup-arch.sh system/saar-update system/install.sh system/first-login.sh
       - uses: actions/checkout@v4
         with:
           repository: 0Inexis0/saar-fighters-updates
