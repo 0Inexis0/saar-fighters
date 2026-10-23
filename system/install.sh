@@ -4,6 +4,8 @@ set -euo pipefail
 [[ $EUID == 0 ]] || { echo "Run as root inside the VM."; exit 1; }
 if [[ ${1:-} == --image && -e /etc/saar-live && -e /etc/mkinitcpio.conf.d/archiso.conf ]]; then
     : # Clean image root prepared by iso/configure-live.sh.
+elif [[ ${1:-} == --existing-arch && -f /etc/arch-release && ! -e /etc/saar-live ]]; then
+    : # Explicitly confirmed setup on an existing Arch installation.
 else
     systemd-detect-virt --vm --quiet || { echo "Use the live ISO installer on physical machines."; exit 1; }
 fi
@@ -21,10 +23,12 @@ fi
 printf 'LANG=de_DE.UTF-8\n' > /etc/locale.conf
 # A club laptop must boot offline too. Keep time synchronization in the
 # background, without making the desktop wait for an NTP server.
-systemctl disable systemd-time-wait-sync.service
-systemctl reset-failed systemd-time-wait-sync.service || true
-mkdir -p /etc/cloud
-touch /etc/cloud/cloud-init.disabled
+if [[ ${1:-} != --existing-arch ]]; then
+    systemctl disable systemd-time-wait-sync.service
+    systemctl reset-failed systemd-time-wait-sync.service || true
+    mkdir -p /etc/cloud
+    touch /etc/cloud/cloud-init.disabled
+fi
 install -Dm755 "$root/system/saar-update" /usr/local/libexec/saar-update
 install -Dm755 "$root/system/update_custom.py" /usr/local/libexec/saar-update-custom.py
 install -Dm644 "$root/system/de.saarfighters.update.policy" /usr/share/polkit-1/actions/de.saarfighters.update.policy
