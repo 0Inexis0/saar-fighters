@@ -51,6 +51,41 @@ def icon(name, color="#e6e9df", size=40):
     return QIcon(pixmap)
 
 
+BUTTON_ICONS = {
+    "music": ("com.spotify.Client", "spotify"),
+    "web": ("firefox",),
+    "folder": ("org.kde.dolphin", "system-file-manager"),
+    "wifi": ("network-wireless", "preferences-system-network-wireless"),
+    "sound": ("preferences-desktop-sound", "audio-volume-high"),
+    "bluetooth": ("preferences-system-bluetooth", "bluetooth"),
+    "update": ("system-software-update",),
+    "restart": ("system-reboot",),
+    "power": ("system-shutdown",),
+}
+
+
+def configure_icons():
+    # Include system Flatpak exports so Spotify uses its installed brand logo.
+    paths = QIcon.themeSearchPaths()
+    for path in ("/usr/share/icons", "/var/lib/flatpak/exports/share/icons",
+                 str(Path.home() / ".local/share/flatpak/exports/share/icons")):
+        if path not in paths:
+            paths.append(path)
+    QIcon.setThemeSearchPaths(paths)
+    if not QIcon.themeName():
+        QIcon.setThemeName("breeze-dark")
+    QIcon.setFallbackThemeName("breeze-dark")
+
+
+def button_icon(name, size=40):
+    for theme_name in BUTTON_ICONS[name]:
+        result = QIcon.fromTheme(theme_name)
+        if not result.isNull():
+            return result
+    # Keep controls usable in previews without the target applications installed.
+    return icon(name, "#c3b48b", size)
+
+
 class StatusValue(QLabel):
     """Keep long device names from pushing the header beyond the window."""
     def __init__(self):
@@ -87,7 +122,7 @@ class Tile(QPushButton):
         layout.setContentsMargins(20, 12, 20, 12)
         top = QHBoxLayout()
         image = QLabel()
-        image.setPixmap(icon(symbol, "#24261b" if accent else "#c3b48b", 32).pixmap(QSize(32, 32)))
+        image.setPixmap(button_icon(symbol).pixmap(QSize(40, 40)))
         top.addWidget(image)
         top.addStretch()
         layout.addLayout(top)
@@ -187,6 +222,7 @@ class Home(QWidget):
     def __init__(self, preview=False):
         super().__init__()
         self.preview = preview
+        configure_icons()
         self.setObjectName("home")
         self.setWindowTitle("Saar-Fighters · Startseite")
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
@@ -274,7 +310,8 @@ class Home(QWidget):
         layout.addWidget(self.feedback)
         footer = QHBoxLayout()
         self.update_button = QPushButton("  Updates")
-        self.update_button.setIcon(icon("update", "#c3b48b", 22))
+        self.update_button.setIcon(button_icon("update", 22))
+        self.update_button.setIconSize(QSize(22, 22))
         self.update_button.clicked.connect(self.show_updates)
         footer.addWidget(self.update_button)
         footer.addStretch()
@@ -286,7 +323,8 @@ class Home(QWidget):
         footer.addStretch()
         for symbol, text, action in (("restart", "Neustart", "reboot"), ("power", "Ausschalten", "poweroff")):
             button = QPushButton(f"  {text}")
-            button.setIcon(icon(symbol, "#ceccbb", 20))
+            button.setIcon(button_icon(symbol, 20))
+            button.setIconSize(QSize(20, 20))
             button.clicked.connect(lambda checked=False, a=action: self.power(a))
             footer.addWidget(button)
         layout.addLayout(footer)

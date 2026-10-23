@@ -14,3 +14,11 @@ Es ist für die vom Verein angefragte Vereinsoberfläche eingebunden.
 
 `terrain.svg` und die programmgenerierten Bedienungssymbole sind eigene
 Bestandteile dieses Projekts.
+
+Die Aktionsbuttons verwenden die installierten Original-App-Icons von Spotify,
+Firefox und Dolphin sowie die KDE/Breeze-System-Icons für WLAN, Audio, Bluetooth
+und Systemaktionen. Diese werden über das Icon-Theme einschließlich der
+Flatpak-Exporte geladen und nicht als eigene Markenzeichnungen nachgebaut.
+Die Originaldateien und ihre Lizenzen bleiben Bestandteil der jeweiligen
+installierten Pakete. Ohne installiertes App-Icon wird für lokale Vorschauen
+auf das eigene Bedienungssymbol zurückgegriffen.
