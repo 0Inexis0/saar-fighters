@@ -15,7 +15,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-REPOSITORY = "https://github.com/0Inexis0/saar-fighters-os.git"
+REPOSITORY = "https://github.com/0Inexis0/saar-fighters-updates.git"
 BRANCH = "main"
 # Only these project-owned integration files are replaced. No account, boot,
 # partition, network, authentication or desktop-preference setup is rerun.
@@ -48,9 +48,14 @@ def fetch_checkout(destination):
     env = {"PATH": "/usr/bin:/bin", "HOME": str(destination.parent),
            "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1",
            "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_TERMINAL_PROMPT": "0"}
-    subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "clone", "--depth=1",
-                    "--single-branch", "--branch", BRANCH, "--", REPOSITORY,
-                    str(destination)], env=env, check=True, timeout=180)
+    try:
+        subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "clone", "--depth=1",
+                        "--single-branch", "--branch", BRANCH, "--", REPOSITORY,
+                        str(destination)], env=env, check=True, timeout=180)
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError("GitHub-Download nicht möglich. Internetverbindung und "
+                           "Lesezugriff auf das Update-Repository prüfen; "
+                           "die eigene Oberfläche wurde nicht verändert.") from error
     revision = subprocess.check_output(["git", "-C", str(destination), "rev-parse", "HEAD"],
                                        env=env, text=True, timeout=15).strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision):

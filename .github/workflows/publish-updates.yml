@@ -1,0 +1,49 @@
+name: Publish public updates
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: publish-public-updates
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libopengl0 libxkbcommon0
+      - run: pip install 'PySide6>=6.8,<7' dbus-next
+      - name: Validate runtime before publishing
+        working-directory: source
+        run: |
+          python -m unittest discover -s tests -v
+          bash -n system/saar-update system/install.sh system/first-login.sh
+      - uses: actions/checkout@v4
+        with:
+          repository: 0Inexis0/saar-fighters-updates
+          ref: main
+          path: updates
+          ssh-key: ${{ secrets.SAAR_UPDATES_DEPLOY_KEY }}
+      - name: Export runtime files
+        working-directory: source
+        run: python scripts/export-update.py ../updates
+      - name: Publish checked update
+        working-directory: updates
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish Saar-Fighters runtime update"
+            git push origin HEAD:main
+          fi

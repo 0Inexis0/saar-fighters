@@ -149,7 +149,13 @@ ein bootfähiges System ein.
   aktuelles VM-/Datenträger-Backup bereithalten. Die Schaltfläche ersetzt
   weder Backups noch die Prüfung von Arch-Meldungen bei größeren Änderungen.
 - Der Update-Knopf aktualisiert Pakete, Flatpaks und die eigene Oberfläche von
-  `0Inexis0/saar-fighters-os`, Branch `main`. Nur gepushte Änderungen kommen an.
+  dem öffentlichen Repository
+  [`0Inexis0/saar-fighters-updates`](https://github.com/0Inexis0/saar-fighters-updates),
+  Branch `main`. Auf dem Laptop sind kein Schlüssel und kein GitHub-Login nötig.
+  Nach einem Push auf `main` veröffentlicht der Workflow „Publish public updates“
+  die Laufzeitdateien automatisch, wenn die Tests bestanden sind. Erst nach
+  erfolgreichem Workflow sind neue Änderungen für die Laptops verfügbar.
+  Das Entwicklungs-Repository und seine Historie bleiben privat.
   Der Download wird auf vollständige Dateien und Syntax geprüft; das allgemeine
   Installationsskript wird dabei nicht erneut ausgeführt. Die vorherige Oberfläche
   bleibt unter `/var/lib/saar-fighters-update/previous` erhalten. Schlägt der
@@ -183,3 +189,14 @@ ein bootfähiges System ein.
 - [Spotify unter Linux](https://www.spotify.com/de/download/linux/)
 
 Siehe [docs/validation.md](docs/validation.md) für den tatsächlich geprüften Stand.
+
+### Öffentliche Updates veröffentlichen
+
+Der Workflow benötigt einmalig das Actions-Secret `SAAR_UPDATES_DEPLOY_KEY`:
+ein Schreib-Deploy-Key ausschließlich für das öffentliche Update-Repository.
+Dieser Schlüssel bleibt bei GitHub Actions und wird weder auf Laptops noch in
+ISOs verteilt. Das Export-Skript übernimmt nur versionierte Dateien aus `app/`,
+`system/`, `installer/` und `LICENSE`; lokale Builds und die Entwicklungshistorie
+werden nicht exportiert. Den erfolgreichen Workflow vor der Ankündigung eines
+Updates prüfen. Das erste Paket kann mit `scripts/export-update.py` in einem
+separaten Checkout des öffentlichen Repositories vorbereitet werden.

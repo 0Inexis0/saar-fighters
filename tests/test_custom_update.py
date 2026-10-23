@@ -61,6 +61,19 @@ class CustomUpdateTests(unittest.TestCase):
         self.assertFalse(list(self.root.rglob("*.saar-new")))
         self.assertFalse(list(self.root.rglob("*.saar-previous")))
 
+    def test_backup_failure_does_not_modify_installed_version(self):
+        copytree = shutil.copytree
+        def fail(source, destination, *args, **kwargs):
+            if Path(source) == self.project:
+                raise OSError("simulated full backup disk")
+            return copytree(source, destination, *args, **kwargs)
+        with patch.object(update.shutil, "copytree", fail), self.assertRaises(OSError):
+            update.install_checkout(self.checkout, "a" * 40, self.root)
+        self.assertEqual((self.project / "old-version").read_text(), "working version")
+        self.assertEqual(self.helper.read_text(), "old helper")
+        self.assertFalse(list(self.root.rglob("*.saar-new")))
+        self.assertFalse((self.state / "recovery.json").exists())
+
     def test_incomplete_download_is_rejected(self):
         (self.checkout / "app/main.py").unlink()
         with self.assertRaisesRegex(RuntimeError, "unvollständig"):
