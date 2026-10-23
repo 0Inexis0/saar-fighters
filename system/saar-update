@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 0 && $EUID == 0 ]] || { echo "Nur über die Update-Schaltfläche starten."; exit 1; }
+export PATH=/usr/bin:/bin
+export LANG=de_DE.UTF-8 LC_ALL=de_DE.UTF-8 LANGUAGE=de
+# Holding an inhibitor prevents accidental shutdown during package replacement.
+if [[ ${SAAR_UPDATE_INHIBITED:-0} != 1 ]]; then
+    export SAAR_UPDATE_INHIBITED=1
+    exec systemd-inhibit --what=shutdown:sleep --mode=block --who="Saar-Fighters Update" \
+        --why="Systemaktualisierung läuft" /usr/local/libexec/saar-update
+fi
+exec 9>/run/saar-fighters-update.lock
+flock -n 9 || { echo "Ein anderes Vereins-Update läuft bereits."; exit 1; }
+echo "Arch Linux wird vollständig aktualisiert …"
+pacman -Syu --needed --noconfirm git
+echo "Flatpak-Apps werden aktualisiert …"
+flatpak update --system --noninteractive
+echo "Eigene Oberfläche, Taskleiste und Designs werden aktualisiert …"
+/usr/bin/python /usr/local/libexec/saar-update-custom.py
+date --iso-8601=seconds > /var/lib/saar-last-update
+echo "Update erfolgreich abgeschlossen."

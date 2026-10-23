@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 0 && $EUID == 0 && -f /etc/saar-live ]] || exit 1
+exec /usr/bin/systemd-inhibit --what=shutdown:sleep --mode=block \
+  --who='Saar-Fighters Installation' --why='Installation läuft' \
+  /usr/bin/python -I /opt/saar-fighters/installer/entry.py

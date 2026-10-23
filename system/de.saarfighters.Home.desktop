@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Startseite
+Comment=Zur Saar-Fighters Startseite
+Exec=/usr/local/bin/saar-home
+Icon=/opt/saar-fighters/app/assets/home.svg
+Terminal=false
+Categories=Utility;
+StartupWMClass=saar-home
