@@ -1,7 +1,7 @@
 // Applied once to the dedicated club user, never to an administrator's desktop.
 for (const panel of panels()) panel.remove();
 const panel = new Panel;
-panel.location = "top";
+panel.location = "bottom";
 panel.height = 48;
 panel.hiding = "none";
 panel.addWidget("de.saarfighters.home");

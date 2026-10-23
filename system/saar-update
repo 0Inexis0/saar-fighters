@@ -12,8 +12,10 @@ fi
 exec 9>/run/saar-fighters-update.lock
 flock -n 9 || { echo "Ein anderes Vereins-Update läuft bereits."; exit 1; }
 echo "Arch Linux wird vollständig aktualisiert …"
-pacman -Syu --noconfirm
+pacman -Syu --needed --noconfirm git
 echo "Flatpak-Apps werden aktualisiert …"
 flatpak update --system --noninteractive
+echo "Eigene Oberfläche, Taskleiste und Designs werden aktualisiert …"
+/usr/bin/python /usr/local/libexec/saar-update-custom.py
 date --iso-8601=seconds > /var/lib/saar-last-update
 echo "Update erfolgreich abgeschlossen."

@@ -55,10 +55,10 @@ PlasmoidItem {
             Image {
                 anchors.centerIn: parent
                 source: "file:///opt/saar-fighters/app/assets/home.svg"
-                sourceSize.width: 24
-                sourceSize.height: 24
-                width: 24
-                height: 24
+                sourceSize.width: 32
+                sourceSize.height: 32
+                width: 32
+                height: 32
             }
         }
         padding: 6

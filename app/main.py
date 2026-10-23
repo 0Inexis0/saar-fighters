@@ -115,7 +115,7 @@ class UpdateDialog(QDialog):
         title = QLabel("Updates für euren Rechner.")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
         layout.addWidget(title)
-        info = QLabel("Aktualisiert Arch und installierte Flatpak-Apps.\n"
+        info = QLabel("Aktualisiert Arch, Flatpak-Apps und Saar-Fighters von GitHub/main.\n"
                       "Du brauchst Internet und das Passwort des Wartungskontos.\n"
                       "Bitte Netzteil anschließen und währenddessen nicht ausschalten.")
         info.setWordWrap(True)
@@ -158,7 +158,7 @@ class UpdateDialog(QDialog):
     def finished_update(self, code, status):
         self.close_button.setEnabled(True)
         if status == QProcess.ExitStatus.NormalExit and code == 0:
-            self.state.setText("Update erfolgreich. Du kannst den Rechner jetzt neu starten.")
+            self.state.setText("Update erfolgreich. Bitte neu starten, um alle Änderungen zu übernehmen.")
         elif code in (126, 127):
             self.state.setText("Update nicht freigegeben oder abgebrochen. Es wurde nicht erfolgreich abgeschlossen.")
             self.start.setEnabled(True)

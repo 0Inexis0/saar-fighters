@@ -11,7 +11,7 @@ fi
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 [[ $root == /opt/saar-fighters ]] || { echo "Deploy project to /opt/saar-fighters first."; exit 1; }
 # Existing installations also need the device worker and German translations.
-for package in python-dbus-next qt6-translations upower libpulse; do
+for package in python-dbus-next qt6-translations upower libpulse git; do
     pacman -Q "$package" >/dev/null 2>&1 || pacman -S --needed --noconfirm "$package"
 done
 if ! locale -a | grep -qi '^de_DE.utf8$'; then
@@ -26,6 +26,7 @@ systemctl reset-failed systemd-time-wait-sync.service || true
 mkdir -p /etc/cloud
 touch /etc/cloud/cloud-init.disabled
 install -Dm755 "$root/system/saar-update" /usr/local/libexec/saar-update
+install -Dm755 "$root/system/update_custom.py" /usr/local/libexec/saar-update-custom.py
 install -Dm644 "$root/system/de.saarfighters.update.policy" /usr/share/polkit-1/actions/de.saarfighters.update.policy
 install -Dm644 "$root/system/de.saarfighters.Home.desktop" /usr/share/applications/de.saarfighters.Home.desktop
 cat > /usr/local/bin/saar-home <<'EOF'

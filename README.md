@@ -42,9 +42,11 @@ Ordner `build/releases/0.1.0/`; dieses Repository enthält den Quellcode.
   eingestellt. Spotify übernimmt die deutsche Sprachumgebung.
 - Updates: sichtbarer Fortschritt, Administratorfreigabe und ehrliche
   Erfolgs-/Fehlermeldung. Aktualisiert das komplette Arch-System und
-  systemweit installierte Flatpaks.
+  systemweit installierte Flatpaks sowie Oberfläche, Taskleiste, Designs und
+  Hilfsskripte aus dem festen GitHub-Repository (`main`). Eigene Änderungen
+  werden nach einem Neustart aktiv.
 - Neustart und Ausschalten: erst nach Bestätigung; Abbrechen ist vorausgewählt.
-- **Startseite** in der oberen Leiste bringt die Vereinsoberfläche wieder
+- **Startseite** in der unteren Leiste bringt die Vereinsoberfläche wieder
   nach vorne. Laufende Apps bleiben über die Leiste erreichbar. Die Leiste
   verwendet den eigenen matten Plasma-Stil „Saar Olive“ mit Khaki-Akzenten.
 
@@ -146,8 +148,17 @@ ein bootfähiges System ein.
 - Arch ist ein Rolling Release. Updates vor Vereinsterminen prüfen und ein
   aktuelles VM-/Datenträger-Backup bereithalten. Die Schaltfläche ersetzt
   weder Backups noch die Prüfung von Arch-Meldungen bei größeren Änderungen.
-- Der Update-Knopf aktualisiert Pakete und Flatpaks. Änderungen an dieser
-  eigenen Oberfläche werden derzeit mit dem Deployment-Skript ausgerollt.
+- Der Update-Knopf aktualisiert Pakete, Flatpaks und die eigene Oberfläche von
+  `0Inexis0/saar-fighters-os`, Branch `main`. Nur gepushte Änderungen kommen an.
+  Der Download wird auf vollständige Dateien und Syntax geprüft; das allgemeine
+  Installationsskript wird dabei nicht erneut ausgeführt. Die vorherige Oberfläche
+  bleibt unter `/var/lib/saar-fighters-update/previous` erhalten. Schlägt der
+  Dateiaustausch fehl, wird er zurückgerollt. System-/Flatpak-Updates werden dabei
+  nicht zurückgerollt. Ein Stromausfall während des Austauschs erfordert eine
+  Prüfung durch die Administration anhand von `recovery.json` im selben Ordner.
+- Bestehende Installationen benötigen einmalig den neuen Update-Helfer; danach
+  aktualisiert dieser auch sich selbst. Die bisherige ISO enthält ihn noch nicht.
+  `python system/update_custom.py --check` lädt und prüft GitHub ohne Installation.
 - Keine automatische Update- oder Neustartpflicht während der Musiknutzung.
 - Das Vereinskonto ist eine Bedienungserleichterung, kein manipulationssicherer
   öffentlicher Kiosk. Über die gestarteten Apps ist normale Computernutzung möglich.
