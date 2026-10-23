@@ -78,6 +78,9 @@ def configure_icons():
 
 
 def button_icon(name, size=40):
+    flat_icon = ASSETS / "fluent" / f"{name}.svg"
+    if flat_icon.is_file():
+        return QIcon(str(flat_icon))
     for theme_name in BUTTON_ICONS[name]:
         result = QIcon.fromTheme(theme_name)
         if not result.isNull():
