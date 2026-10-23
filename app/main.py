@@ -51,6 +51,29 @@ def icon(name, color="#e6e9df", size=40):
     return QIcon(pixmap)
 
 
+class StatusValue(QLabel):
+    """Keep long device names from pushing the header beyond the window."""
+    def __init__(self):
+        super().__init__()
+        self.full_text = ""
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+
+    def setText(self, text):
+        self.full_text = text
+        self.setAccessibleName(text)
+        self.setToolTip(text)
+        self.refresh_text()
+
+    def refresh_text(self):
+        super().setText(self.fontMetrics().elidedText(
+            self.full_text, Qt.TextElideMode.ElideRight, self.contentsRect().width()))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.refresh_text()
+
+
 class Tile(QPushButton):
     def __init__(self, symbol, title, subtitle, action, accent=False):
         super().__init__()
@@ -64,22 +87,19 @@ class Tile(QPushButton):
         layout.setContentsMargins(20, 12, 20, 12)
         top = QHBoxLayout()
         image = QLabel()
-        image.setPixmap(icon(symbol, "#152118" if accent else "#edaa66", 32).pixmap(QSize(32, 32)))
+        image.setPixmap(icon(symbol, "#24261b" if accent else "#c3b48b", 32).pixmap(QSize(32, 32)))
         top.addWidget(image)
         top.addStretch()
-        arrow = QLabel("↗")
-        arrow.setStyleSheet(f"font-size: 22px; color: {'#294a35' if accent else '#718078'}")
-        top.addWidget(arrow)
         layout.addLayout(top)
         layout.addStretch()
         text = QLabel(title)
         text.setObjectName("tileTitle")
-        text.setStyleSheet(f"color: {'#102318' if accent else '#f3f3eb'};")
+        text.setStyleSheet(f"color: {'#24261b' if accent else '#efede3'};")
         layout.addWidget(text)
         sub = QLabel(subtitle)
         sub.setWordWrap(True)
         sub.setObjectName("tileSubtitle")
-        sub.setStyleSheet(f"color: {'#304b37' if accent else '#a8b5ae'};")
+        sub.setStyleSheet(f"color: {'#41452e' if accent else '#b7b6a6'};")
         layout.addWidget(sub)
         for child in self.findChildren(QLabel):
             child.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -184,50 +204,57 @@ class Home(QWidget):
         logo.setAccessibleName("Original-Logo der Saar-Fighters AS")
         header.addWidget(logo)
         brand = QLabel("SAAR-FIGHTERS\nAS e.V.")
-        brand.setStyleSheet("font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #edaa66;")
+        brand.setStyleSheet("font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #c3b48b;")
         header.addWidget(brand)
-        header.addStretch()
-        if Path("/etc/saar-live").exists() and not preview:
-            install_button = QPushButton("Auf diesem Rechner installieren")
-            install_button.setObjectName("confirm")
-            install_button.clicked.connect(lambda: self.launch("install"))
-            header.addWidget(install_button)
-        self.website_button = QPushButton("Vereinswebseite  ↗")
-        self.website_button.setAccessibleName("Vereinswebseite öffnen")
-        self.website_button.clicked.connect(lambda: self.launch("club"))
-        header.addWidget(self.website_button)
-        layout.addLayout(header)
-
+        header.addSpacing(20)
         self.device_client = DeviceClient(self, preview)
         self.status_values = []
         status_row = QHBoxLayout()
-        status_row.setSpacing(8)
+        status_row.setSpacing(6)
         for title, symbol in (("Netzwerk", "wifi"), ("Bluetooth", "bluetooth"),
                               ("Netzteil", "charger"), ("Akku", "battery")):
             frame = QFrame()
             frame.setObjectName("statusChip")
             box = QVBoxLayout(frame)
-            box.setContentsMargins(12, 7, 12, 7)
+            box.setContentsMargins(10, 9, 10, 9)
             box.setSpacing(2)
-            box.addWidget(label(title, "font-size: 10px; color: #a6b5a7;"))
-            value = label("Wird geprüft …", "font-size: 12px; font-weight: 600;")
+            heading = QHBoxLayout()
+            heading.setSpacing(5)
+            symbol_label = QLabel()
+            symbol_label.setPixmap(icon(symbol, "#b6b393", 14).pixmap(QSize(14, 14)))
+            heading.addWidget(symbol_label)
+            heading.addWidget(label(title, "font-size: 10px; color: #b6b393;"))
+            heading.addStretch()
+            box.addLayout(heading)
+            value = StatusValue()
+            value.setStyleSheet("font-size: 12px; font-weight: 600;")
+            value.setText("Wird geprüft …")
             value.setMinimumWidth(0)
             box.addWidget(value)
             status_row.addWidget(frame, 1)
             self.status_values.append(value)
-        layout.addLayout(status_row)
+        header.addLayout(status_row, 1)
+        layout.addLayout(header)
         self.network = self.status_values[0]
         self.device_client.status_changed.connect(self.update_status)
         QTimer.singleShot(800, self.device_client.refresh_status)
 
         if preview:
             layout.addWidget(label("Vorschau · Statusanzeigen mit Beispieldaten",
-                                   "font-size: 15px; color: #b8c3b9;"))
+                                   "font-size: 15px; color: #b9b8a7;"))
+
+        if Path("/etc/saar-live").exists() and not preview:
+            install_button = QPushButton("Auf diesem Rechner installieren")
+            install_button.setObjectName("confirm")
+            install_button.clicked.connect(lambda: self.launch("install"))
+            layout.addWidget(install_button)
 
         grid = QGridLayout()
-        grid.setSpacing(14)
+        self.tile_grid = grid
+        grid.setSpacing(24)
+        grid.setContentsMargins(48, 36, 48, 36)
         specs = [
-            ("music", "Spotify", "Der Sound für euren Tag", "spotify", True),
+            ("music", "Spotify", "Der Sound für euren Tag", "spotify", False),
             ("web", "Internet", "Browser öffnen", "web", False),
             ("folder", "Dateien", "Musik, Bilder & USB-Sticks", "files", False),
             ("wifi", "WLAN", "Netzwerk verbinden", "wifi", False),
@@ -242,21 +269,29 @@ class Home(QWidget):
         layout.addLayout(grid, 1)
         self.feedback = QLabel()
         self.feedback.hide()
-        self.feedback.setStyleSheet("color: #a6b5a7; font-size: 12px;")
+        self.feedback.setStyleSheet("color: #b6b393; font-size: 12px;")
         self.feedback.setWordWrap(True)
         layout.addWidget(self.feedback)
         footer = QHBoxLayout()
         self.update_button = QPushButton("  Updates")
-        self.update_button.setIcon(icon("update", "#edaa66", 22))
+        self.update_button.setIcon(icon("update", "#c3b48b", 22))
         self.update_button.clicked.connect(self.show_updates)
         footer.addWidget(self.update_button)
         footer.addStretch()
+        self.website_button = QPushButton("Vereinswebseite")
+        self.website_button.setAccessibleName("Vereinswebseite öffnen")
+        self.website_button.clicked.connect(lambda: self.launch("club"))
+        footer.addWidget(self.website_button)
+
+        footer.addStretch()
         for symbol, text, action in (("restart", "Neustart", "reboot"), ("power", "Ausschalten", "poweroff")):
             button = QPushButton(f"  {text}")
-            button.setIcon(icon(symbol, "#c6cfc7", 20))
+            button.setIcon(icon(symbol, "#ceccbb", 20))
             button.clicked.connect(lambda checked=False, a=action: self.power(a))
             footer.addWidget(button)
         layout.addLayout(footer)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setFocus()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -265,6 +300,10 @@ class Home(QWidget):
 
     def resizeEvent(self, event):
         self.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12, 24 if self.width() < 1000 else 40, 14)
+        compact = self.width() < 1000 or self.height() < 650
+        inset_x, inset_y = (16, 20) if compact else (48, 36)
+        self.tile_grid.setContentsMargins(inset_x, inset_y, inset_x, inset_y)
+        self.tile_grid.setSpacing(20 if compact else 24)
         super().resizeEvent(event)
 
     def update_status(self, status):
@@ -371,37 +410,37 @@ class Home(QWidget):
 
 
 STYLE = """
-QWidget { font-family: "Noto Sans", "DejaVu Sans"; color: #eef0e8; font-size: 14px; }
+QWidget { font-family: "Noto Sans", "DejaVu Sans"; color: #eeece1; font-size: 14px; }
 QLabel { background: transparent; }
-QPushButton { background: #22332c; border: 1px solid #405148; border-radius: 12px;
-              padding: 11px 18px; font-weight: 600; min-height: 24px; }
-QPushButton:hover { background: #31463a; border-color: #ddaa70; }
-QPushButton:focus { border: 2px solid #ffc78c; }
-QPushButton:pressed { background: #435541; }
-QPushButton:disabled { color: #718078; background: #1b2621; }
-QPushButton#tile { background: rgba(28, 45, 36, 235); border: 1px solid #435346; border-radius: 18px; padding: 0; }
-QPushButton#tile:hover { background: #314a39; border-color: #e9ac70; }
-QPushButton#tile:focus { border: 2px solid #ffc78c; }
-QPushButton#primaryTile { background: #b8d79a; border: 1px solid #d7ecb6; border-radius: 18px; padding: 0; }
-QPushButton#primaryTile:hover { background: #cce9af; }
-QPushButton#primaryTile:focus { border: 2px solid #ffffff; }
+QPushButton { background: #35372c; border: none; border-radius: 12px;
+              padding: 11px 18px; font-weight: 600; min-height: 24px; outline: none; }
+QPushButton:hover, QPushButton:focus { background: #50523e; }
+QPushButton:pressed { background: #616347; }
+QPushButton:disabled { color: #929382; background: #2c2e25; }
+QPushButton#tile { background: #303329; border-radius: 18px; padding: 0; }
+QPushButton#tile:hover, QPushButton#tile:focus { background: #454a36; }
+QPushButton#tile:pressed { background: #53583e; }
+QPushButton#primaryTile { background: #a5a77a; border-radius: 18px; padding: 0; }
+QPushButton#primaryTile:hover, QPushButton#primaryTile:focus { background: #bec093; }
+QPushButton#primaryTile:pressed { background: #929568; }
 QLabel#tileTitle { font-size: 24px; font-weight: 750; }
 QLabel#tileSubtitle { font-size: 12px; font-weight: 400; }
-QDialog, QMessageBox { background: #18271f; }
-QDialog#deviceSheet { background: #18271f; border: 1px solid #64745b; border-radius: 18px; }
-QFrame#statusChip { background: rgba(28, 45, 36, 220); border: 1px solid #435346; border-radius: 10px; }
-QListWidget { background: #111f18; border: 1px solid #435346; border-radius: 12px; padding: 6px; outline: none; }
-QListWidget::item { padding: 8px 14px; border-radius: 9px; color: #e3e9dc; }
-QListWidget::item:selected { background: #354d38; color: #f1f5e9; border: 1px solid #b8d79a; }
-QLineEdit { background: #101d16; border: 1px solid #63765c; border-radius: 9px; padding: 12px; }
-QLineEdit:focus { border-color: #edaa66; }
-QSlider::groove:horizontal { height: 8px; border-radius: 4px; background: #35483a; }
-QSlider::sub-page:horizontal { background: #b8d79a; border-radius: 4px; }
-QSlider::handle:horizontal { width: 26px; margin: -10px 0; border-radius: 12px; background: #edaa66; }
-QPlainTextEdit { background: #101b15; color: #caddc3; border: 1px solid #465b49;
+QDialog, QMessageBox { background: #25281f; }
+QDialog#deviceSheet { background: #25281f; border: none; border-radius: 18px; }
+QFrame#statusChip { background: #303329; border: none; border-radius: 12px; }
+QListWidget { background: #1e211a; border: none; border-radius: 12px; padding: 6px; outline: none; }
+QListWidget::item { padding: 8px 14px; border-radius: 9px; color: #e8e6d9; }
+QListWidget::item:selected { background: #50563c; color: #f3f1e6; border: none; }
+QLineEdit { background: #1e211a; border: none; border-radius: 9px; padding: 12px; }
+QLineEdit:focus { background: #383d2c; }
+QSlider::groove:horizontal { height: 8px; border-radius: 4px; background: #444935; }
+QSlider::sub-page:horizontal { background: #a5a77a; border-radius: 4px; }
+QSlider::handle:horizontal { width: 26px; margin: -10px 0; border-radius: 12px; background: #c3b48b; }
+QPlainTextEdit { background: #1e211a; color: #d4d4bb; border: none;
                  border-radius: 8px; font-family: monospace; font-size: 12px; padding: 8px; }
-QPushButton#confirm { background: #b8d79a; color: #17261c; }
-QPushButton#confirm:disabled { background: #28372d; color: #7e8c81; border-color: #3c4d40; }
+QPushButton#confirm { background: #a5a77a; color: #24261b; }
+QPushButton#confirm:hover, QPushButton#confirm:focus { background: #bec093; }
+QPushButton#confirm:disabled { background: #35392b; color: #929382; }
 """
 
 
@@ -420,7 +459,7 @@ def main():
     app.setDesktopFileName("de.saarfighters.Home")
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
-    app.setWindowIcon(icon("home"))
+    app.setWindowIcon(QIcon(str(ASSETS / "home.svg")))
     server = None
     if not (args.preview or args.screenshot):
         socket = QLocalSocket()

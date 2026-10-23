@@ -2,6 +2,11 @@
 set -euo pipefail
 [[ $(id -un) == saar ]] || exit 0
 mkdir -p "$HOME/.local/state"
+# Apply the panel style independently of the one-time layout migration.
+if [[ ! -f "$HOME/.local/state/saar-panel-olive-v1" ]]; then
+    plasma-apply-desktoptheme saar-olive
+    touch "$HOME/.local/state/saar-panel-olive-v1"
+fi
 [[ -f "$HOME/.local/state/saar-layout-v1" ]] && exit 0
 plasma-apply-colorscheme BreezeDark
 # Plasma's DBus service can take a few seconds after graphical-session startup.

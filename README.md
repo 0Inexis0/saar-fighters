@@ -1,8 +1,8 @@
 # Saar-Fighters OS
 
 Eine einfache Vereinsoberfläche für **Saar-Fighters AS e.V.**, auf Arch Linux.
-Große Schaltflächen statt eines vollgepackten Desktops. Dunkles Waldgrün,
-Salbeigrün und warme Orange-Akzente; der skalierbare Gelände-Hintergrund
+Große Schaltflächen statt eines vollgepackten Desktops. Matte Olive-, Khaki- und Erdtöne ohne Konturen oder Leuchteffekte;
+der skalierbare Flecktarn-Hintergrund
 ist Bestandteil des Projekts. Das Original-Logo stammt von der
 [Vereinswebseite](https://www.saarfighters-as.de/) (siehe [Bildnachweis](docs/assets.md)).
 
@@ -45,7 +45,8 @@ Ordner `build/releases/0.1.0/`; dieses Repository enthält den Quellcode.
   systemweit installierte Flatpaks.
 - Neustart und Ausschalten: erst nach Bestätigung; Abbrechen ist vorausgewählt.
 - **Startseite** in der oberen Leiste bringt die Vereinsoberfläche wieder
-  nach vorne. Laufende Apps bleiben über die Leiste erreichbar.
+  nach vorne. Laufende Apps bleiben über die Leiste erreichbar. Die Leiste
+  verwendet den eigenen matten Plasma-Stil „Saar Olive“ mit Khaki-Akzenten.
 
 Der Vereinsbenutzer `saar` meldet sich automatisch an und hat keine
 sudo-Rechte. Das separate Konto `wartung` dient zur Administration.

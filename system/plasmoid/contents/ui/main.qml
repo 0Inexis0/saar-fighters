@@ -41,10 +41,32 @@ PlasmoidItem {
         onNewData: function(source, data) { disconnectSource(source); }
     }
     fullRepresentation: PlasmaComponents.Button {
+        id: homeButton
         text: "Startseite"
-        icon.name: "go-home"
-        Layout.minimumWidth: 160
-        Layout.preferredWidth: 160
+        hoverEnabled: true
+        background: Rectangle {
+            y: -6
+            width: homeButton.width
+            height: homeButton.height + 12
+            radius: 8
+            color: homeButton.down ? "#616347" : (homeButton.hovered || homeButton.activeFocus ? "#454a36" : "#303329")
+        }
+        contentItem: Item {
+            Image {
+                anchors.centerIn: parent
+                source: "file:///opt/saar-fighters/app/assets/home.svg"
+                sourceSize.width: 24
+                sourceSize.height: 24
+                width: 24
+                height: 24
+            }
+        }
+        padding: 6
+        Layout.minimumWidth: 64
+        Layout.preferredWidth: 64
+        Layout.maximumWidth: 64
+        PlasmaComponents.ToolTip.visible: hovered
+        PlasmaComponents.ToolTip.text: "Startseite"
         onClicked: root.showHome()
         Accessible.name: "Zur Saar-Fighters Startseite"
     }

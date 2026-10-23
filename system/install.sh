@@ -35,6 +35,8 @@ EOF
 chmod 755 /usr/local/bin/saar-home
 install -d /usr/share/plasma/plasmoids/de.saarfighters.home
 cp -a "$root/system/plasmoid/." /usr/share/plasma/plasmoids/de.saarfighters.home/
+install -d /usr/share/plasma/desktoptheme/saar-olive
+cp -a "$root/system/desktoptheme/saar-olive/." /usr/share/plasma/desktoptheme/saar-olive/
 mkdir -p /etc/sddm.conf.d
 cat > /etc/sddm.conf.d/saar.conf <<'EOF'
 [Autologin]

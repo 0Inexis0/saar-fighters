@@ -51,7 +51,7 @@ class Installer(QWidget):
             field.textChanged.connect(self.validate)
             password_row.addWidget(field)
         layout.addLayout(password_row)
-        layout.addWidget(label("Dieses Passwort wird für Updates benötigt. Die normale Vereinsnutzung startet automatisch ohne Anmeldung.", "color: #b8c3b9;"))
+        layout.addWidget(label("Dieses Passwort wird für Updates benötigt. Die normale Vereinsnutzung startet automatisch ohne Anmeldung.", "color: #b9b8a7;"))
         self.erase = QCheckBox("Ich bestätige: Alle Daten auf dem ausgewählten Laufwerk dürfen gelöscht werden.")
         self.erase.toggled.connect(self.validate)
         layout.addWidget(self.erase)
@@ -187,7 +187,7 @@ def main():
     app = QApplication(sys.argv[:1])
     QLocale.setDefault(QLocale("de_DE"))
     app.setStyle("Fusion")
-    app.setStyleSheet(STYLE + "QWidget { background-color: #18271f; } QProgressBar { border: 1px solid #64745b; border-radius: 7px; text-align: center; min-height: 24px; } QProgressBar::chunk { background: #6c9858; } QCheckBox { color: #ffc38a; }")
+    app.setStyleSheet(STYLE + "QWidget { background-color: #25281f; } QProgressBar { border: none; border-radius: 7px; text-align: center; min-height: 24px; } QProgressBar::chunk { background: #a5a77a; } QCheckBox { color: #ffc38a; }")
     preview = "--preview" in sys.argv
     if not preview and not Path("/etc/saar-live").exists():
         QMessageBox.information(None, "Installation", "Bitte den Rechner vom Saar-Fighters-USB-Stick starten.")

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="40">
+<rect id="normal-center" x="8" y="8" width="16" height="16" fill="#303329"/>
+<rect id="normal-top" x="8" y="0" width="16" height="8" fill="#303329"/>
+<rect id="normal-bottom" x="8" y="24" width="16" height="8" fill="#303329"/>
+<rect id="normal-left" x="0" y="8" width="8" height="16" fill="#303329"/>
+<rect id="normal-right" x="24" y="8" width="8" height="16" fill="#303329"/>
+<path id="normal-topleft" transform="translate(0 0)" d="M8 0A8 8 0 0 0 0 8H8Z" fill="#303329"/>
+<path id="normal-topright" transform="translate(24 0)" d="M0 0A8 8 0 0 1 8 8H0Z" fill="#303329"/>
+<path id="normal-bottomleft" transform="translate(0 24)" d="M0 0A8 8 0 0 0 8 8V0Z" fill="#303329"/>
+<path id="normal-bottomright" transform="translate(24 24)" d="M8 0A8 8 0 0 1 0 8V0Z" fill="#303329"/>
+<rect id="focus-center" x="48" y="8" width="16" height="16" fill="#50563c"/>
+<rect id="focus-top" x="48" y="0" width="16" height="8" fill="#50563c"/>
+<rect id="focus-bottom" x="48" y="24" width="16" height="8" fill="#50563c"/>
+<rect id="focus-left" x="40" y="8" width="8" height="16" fill="#50563c"/>
+<rect id="focus-right" x="64" y="8" width="8" height="16" fill="#50563c"/>
+<path id="focus-topleft" transform="translate(40 0)" d="M8 0A8 8 0 0 0 0 8H8Z" fill="#50563c"/>
+<path id="focus-topright" transform="translate(64 0)" d="M0 0A8 8 0 0 1 8 8H0Z" fill="#50563c"/>
+<path id="focus-bottomleft" transform="translate(40 24)" d="M0 0A8 8 0 0 0 8 8V0Z" fill="#50563c"/>
+<path id="focus-bottomright" transform="translate(64 24)" d="M8 0A8 8 0 0 1 0 8V0Z" fill="#50563c"/>
+<rect id="hover-center" x="88" y="8" width="16" height="16" fill="#454a36"/>
+<rect id="hover-top" x="88" y="0" width="16" height="8" fill="#454a36"/>
+<rect id="hover-bottom" x="88" y="24" width="16" height="8" fill="#454a36"/>
+<rect id="hover-left" x="80" y="8" width="8" height="16" fill="#454a36"/>
+<rect id="hover-right" x="104" y="8" width="8" height="16" fill="#454a36"/>
+<path id="hover-topleft" transform="translate(80 0)" d="M8 0A8 8 0 0 0 0 8H8Z" fill="#454a36"/>
+<path id="hover-topright" transform="translate(104 0)" d="M0 0A8 8 0 0 1 8 8H0Z" fill="#454a36"/>
+<path id="hover-bottomleft" transform="translate(80 24)" d="M0 0A8 8 0 0 0 8 8V0Z" fill="#454a36"/>
+<path id="hover-bottomright" transform="translate(104 24)" d="M8 0A8 8 0 0 1 0 8V0Z" fill="#454a36"/>
+<rect id="attention-center" x="128" y="8" width="16" height="16" fill="#665b3d"/>
+<rect id="attention-top" x="128" y="0" width="16" height="8" fill="#665b3d"/>
+<rect id="attention-bottom" x="128" y="24" width="16" height="8" fill="#665b3d"/>
+<rect id="attention-left" x="120" y="8" width="8" height="16" fill="#665b3d"/>
+<rect id="attention-right" x="144" y="8" width="8" height="16" fill="#665b3d"/>
+<path id="attention-topleft" transform="translate(120 0)" d="M8 0A8 8 0 0 0 0 8H8Z" fill="#665b3d"/>
+<path id="attention-topright" transform="translate(144 0)" d="M0 0A8 8 0 0 1 8 8H0Z" fill="#665b3d"/>
+<path id="attention-bottomleft" transform="translate(120 24)" d="M0 0A8 8 0 0 0 8 8V0Z" fill="#665b3d"/>
+<path id="attention-bottomright" transform="translate(144 24)" d="M8 0A8 8 0 0 1 0 8V0Z" fill="#665b3d"/>
+<rect id="minimized-center" x="168" y="8" width="16" height="16" fill="#25291e"/>
+<rect id="minimized-top" x="168" y="0" width="16" height="8" fill="#25291e"/>
+<rect id="minimized-bottom" x="168" y="24" width="16" height="8" fill="#25291e"/>
+<rect id="minimized-left" x="160" y="8" width="8" height="16" fill="#25291e"/>
+<rect id="minimized-right" x="184" y="8" width="8" height="16" fill="#25291e"/>
+<path id="minimized-topleft" transform="translate(160 0)" d="M8 0A8 8 0 0 0 0 8H8Z" fill="#25291e"/>
+<path id="minimized-topright" transform="translate(184 0)" d="M0 0A8 8 0 0 1 8 8H0Z" fill="#25291e"/>
+<path id="minimized-bottomleft" transform="translate(160 24)" d="M0 0A8 8 0 0 0 8 8V0Z" fill="#25291e"/>
+<path id="minimized-bottomright" transform="translate(184 24)" d="M8 0A8 8 0 0 1 0 8V0Z" fill="#25291e"/>
+<rect id="normal-hint-top-margin" width="8" height="8"/>
+<rect id="normal-hint-bottom-margin" width="8" height="8"/>
+<rect id="normal-hint-left-margin" width="8" height="8"/>
+<rect id="normal-hint-right-margin" width="8" height="8"/>
+</svg>

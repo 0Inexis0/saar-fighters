@@ -148,10 +148,10 @@ class Sheet(QDialog):
         self.back.clicked.connect(self.reject)
         header.addWidget(self.back)
         self.body.addLayout(header)
-        self.body.addWidget(label(description, "color: #b8c3b9;"))
+        self.body.addWidget(label(description, "color: #b9b8a7;"))
         if client.preview:
-            self.body.addWidget(label("Vorschau · Beispieldaten · keine Änderungen am Rechner", "color: #edaa66;"))
-        self.message = label("Wird geladen …", "color: #cbdcb9;")
+            self.body.addWidget(label("Vorschau · Beispieldaten · keine Änderungen am Rechner", "color: #c3b48b;"))
+        self.message = label("Wird geladen …", "color: #d4d4bb;")
         self.body.addWidget(self.message)
         self.controls = []
         self.finished.connect(lambda _: setattr(self, "closed", True))
@@ -425,7 +425,7 @@ class BluetoothSheet(Sheet):
                 "display": "Diesen Code am anderen Gerät eingeben und dort bestätigen."}[kind]
         layout.addWidget(label(text, "font-size: 18px;"))
         if event.get("code"):
-            layout.addWidget(label(event["code"], "font-size: 34px; font-weight: 700; color: #edaa66;"))
+            layout.addWidget(label(event["code"], "font-size: 34px; font-weight: 700; color: #c3b48b;"))
         entry = QLineEdit()
         entry.setAccessibleName("Bluetooth-Kopplungscode")
         entry.setMaxLength(6 if kind == "passkey" else 16)
