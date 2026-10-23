@@ -14,6 +14,20 @@ if [[ -f "$HOME/.local/state/saar-layout-v1" ]]; then
             'for (const panel of panels()) { panel.location = "bottom"; }'
         touch "$HOME/.local/state/saar-panel-bottom-v1"
     fi
+    if [[ ! -f "$HOME/.local/state/saar-single-home-v1" ]]; then
+        /usr/lib/qt6/bin/qdbus org.kde.plasmashell /PlasmaShell \
+            org.kde.PlasmaShell.evaluateScript \
+            'for (const panel of panels()) {
+                for (const widget of panel.widgets()) {
+                    if (widget.type === "de.saarfighters.home") widget.remove();
+                    if (widget.type === "org.kde.plasma.icontasks") {
+                        widget.currentConfigGroup = ["General"];
+                        widget.writeConfig("launchers", "applications:de.saarfighters.Home.desktop");
+                    }
+                }
+            }'
+        touch "$HOME/.local/state/saar-single-home-v1"
+    fi
     exit 0
 fi
 plasma-apply-colorscheme BreezeDark
@@ -22,7 +36,7 @@ for attempt in {1..30}; do
     if /usr/lib/qt6/bin/qdbus org.kde.plasmashell /PlasmaShell \
         org.kde.PlasmaShell.evaluateScript \
         "$(cat /opt/saar-fighters/system/plasma-layout.js)"; then
-        touch "$HOME/.local/state/saar-layout-v1" "$HOME/.local/state/saar-panel-bottom-v1"
+        touch "$HOME/.local/state/saar-layout-v1" "$HOME/.local/state/saar-panel-bottom-v1" "$HOME/.local/state/saar-single-home-v1"
         exit 0
     fi
     sleep 1
