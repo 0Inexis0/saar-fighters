@@ -68,6 +68,35 @@ class HomeTests(unittest.TestCase):
         self.assertTrue(self.home.isVisible())
         dialog.deleteLater()
 
+    def test_quick_controls_follow_real_status_and_errors(self):
+        self.home.quick_status("media", {"available": True, "playing": True,
+                                        "player": "org.mpris.MediaPlayer2.spotify"}, None)
+        self.assertEqual(self.home.play_button.text(), "Pause")
+        self.home.quick_status("audio", {"outputs": [{"default": True, "mute": True}]}, None)
+        self.assertEqual(self.home.mute_button.text(), "Ton einschalten")
+        with patch.object(self.home.device_client, "request") as request:
+            self.home.play_button.click()
+            self.home.mute_button.click()
+            request.assert_not_called()
+        self.home.quick_status("media", None, "Verbindung unterbrochen")
+        self.home.quick_status("audio", {"outputs": []}, None)
+        self.assertFalse(self.home.play_button.isEnabled())
+        self.assertFalse(self.home.mute_button.isEnabled())
+
+    def test_quick_action_prevents_double_click_and_refreshes_after_failure(self):
+        self.home.preview = False
+        self.home.media_state = {"player": "org.mpris.MediaPlayer2.spotify"}
+        with patch.object(self.home.device_client, "request") as request:
+            self.home.quick_action("media")
+            self.home.quick_action("media")
+            self.assertEqual(request.call_count, 1)
+            self.assertEqual(request.call_args.args[:2],
+                             ("media_playpause", {"player": "org.mpris.MediaPlayer2.spotify"}))
+            request.call_args.args[2](None, "Player geschlossen")
+            self.assertIn("Player geschlossen", self.home.feedback.text())
+            self.assertFalse(self.home.quick_busy["media"])
+        self.home.preview = True
+
     def choose_power(self, confirm):
         modal = QApplication.activeModalWidget()
         self.assertIsInstance(modal, QMessageBox)

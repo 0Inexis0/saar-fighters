@@ -113,6 +113,8 @@ class DeviceClient(QObject):
 
     def preview_reply(self, operation, callback):
         data = {
+            "media_status": {"available": True, "playing": True,
+                             "player": "org.mpris.MediaPlayer2.spotify"},
             "status": EXAMPLE_STATUS,
             "wifi": {"available": True, "enabled": True, "hardware_enabled": True, "networks": [
                 {"path": "/example/1", "name": "Vereinsheim", "strength": 91, "mode": "wpa-psk", "connected": True, "saved": "yes"},

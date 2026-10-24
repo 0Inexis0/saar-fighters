@@ -17,6 +17,7 @@ from dbus_next.aio import MessageBus
 from dbus_next.service import ServiceInterface, method
 
 from hardware import friendly_error, security_mode, wifi_password_valid
+from media import media_request
 
 NM = "org.freedesktop.NetworkManager"
 NM_PATH = "/org/freedesktop/NetworkManager"
@@ -120,7 +121,7 @@ class Backend:
         self.agent_registered = False
         self.pairing_devices = set()
         self.discovery_owned = set()
-        self.locks = {key: asyncio.Lock() for key in ("wifi", "bt", "audio")}
+        self.locks = {key: asyncio.Lock() for key in ("wifi", "bt", "audio", "media")}
 
     async def call(self, service, path, interface, member, signature="", body=None, timeout=12):
         reply = await asyncio.wait_for(self.bus.call(Message(
@@ -343,6 +344,8 @@ class Backend:
                 for key, value in zip(("network", "bluetooth", "power"), values)}
 
     async def perform(self, operation, args):
+        if operation == "media_status":
+            return await media_request()
         if operation == "status":
             return await self.status()
         if operation == "wifi":
@@ -360,6 +363,14 @@ class Backend:
         if group not in self.locks:
             raise ValueError("Diese Aktion ist nicht verfügbar.")
         async with self.locks[group]:
+            if operation == "media_playpause":
+                target = args.get("player")
+                if not isinstance(target, str) or not target.startswith("org.mpris.MediaPlayer2."):
+                    raise ValueError("Bitte zuerst Musik oder ein Video öffnen.")
+                return await media_request(target)
+            if operation == "audio_toggle":
+                await self.pactl("set-sink-mute", "@DEFAULT_SINK@", "toggle")
+                return {}
             if operation == "wifi_connect":
                 return await self.wifi_connect(args)
             if operation == "wifi_power":

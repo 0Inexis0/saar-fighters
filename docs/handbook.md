@@ -50,6 +50,12 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 
 ## Bedienung
 
+- Play/Pause unten auf der Startseite steuert einen erreichbaren Medienplayer.
+  Laufende Wiedergabe hat Vorrang, bei Gleichstand Spotify. Ohne Player ist
+  der Knopf deaktiviert. Spotify und Browser mit MPRIS-Unterstützung werden erkannt.
+- Stummschalten schaltet den aktuellen Audioausgang stumm; „Ton einschalten“
+  hebt dies wieder auf. Der Status wird alle drei Sekunden aktualisiert.
+
 - Spotify: native Flatpak-App, wenn installiert; sonst Spotify im Browser.
 - Internet: Firefox.
 - YouTube: große Kachel, öffnet YouTube in Firefox.

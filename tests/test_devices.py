@@ -59,6 +59,11 @@ class BackendTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.backend = Backend(Mock())
 
+    async def test_desktop_mute_toggles_current_output_without_changing_volume(self):
+        self.backend.pactl = AsyncMock(return_value="")
+        await self.backend.perform("audio_toggle", {})
+        self.backend.pactl.assert_awaited_once_with("set-sink-mute", "@DEFAULT_SINK@", "toggle")
+
     async def test_absent_physical_power_is_unknown(self):
         self.backend.call = AsyncMock(return_value=[[]])
         self.assertEqual(await self.backend.power(), {"percentage": None, "state": 0, "plugged": None})

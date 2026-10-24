@@ -23,6 +23,9 @@ SOCKET = f"saar-home-{os.getuid()}"
 CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 
 PATHS = {
+    "play": '<path d="m8 4 12 8-12 8z"/>',
+    "pause": '<path d="M8 4v16M16 4v16"/>',
+    "muted": '<path d="M3 9h4l5-4v14l-5-4H3zM16 9l6 6M22 9l-6 6"/>',
     "youtube": '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/>',
     "music": '<path d="M9 18V5l12-3v13M9 8l12-3"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="18" cy="15" rx="3" ry="2"/>',
     "settings": '<circle cx="12" cy="12" r="3"/><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v3l1 2-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1-2v-3l-1-2 2-3 2 .2z"/>',
@@ -353,6 +356,23 @@ class Home(QWidget):
         self.feedback.setWordWrap(True)
         layout.addWidget(self.feedback)
         footer = QHBoxLayout()
+        self.media_state = {}
+        self.quick_busy = {"media": False, "audio": False}
+        self.quick_pending = {"media": False, "audio": False}
+        self.play_button = QPushButton("Play / Pause")
+        self.mute_button = QPushButton("Stummschalten")
+        for button in (self.play_button, self.mute_button):
+            button.setEnabled(False)
+            button.setIconSize(QSize(20, 20))
+            footer.addWidget(button)
+        self.play_button.setIcon(icon("play", size=20))
+        self.mute_button.setIcon(icon("sound", size=20))
+        self.play_button.clicked.connect(lambda: self.quick_action("media"))
+        self.mute_button.clicked.connect(lambda: self.quick_action("audio"))
+        self.quick_timer = QTimer(self)
+        self.quick_timer.timeout.connect(self.refresh_quick_controls)
+        self.quick_timer.start(3000)
+        QTimer.singleShot(900, self.refresh_quick_controls)
         footer.addStretch()
         for symbol, text, action in (("restart", "Neustart", "reboot"), ("power", "Ausschalten", "poweroff")):
             button = QPushButton(f"  {text}")
@@ -368,6 +388,54 @@ class Home(QWidget):
         painter = QPainter(self)
         self.background.render(painter, QRectF(self.rect()))
         painter.end()
+
+    def refresh_quick_controls(self):
+        for group, operation in (("media", "media_status"), ("audio", "audio")):
+            if self.quick_pending[group] or self.quick_busy[group]:
+                continue
+            self.quick_pending[group] = True
+            self.device_client.request(operation, callback=lambda data, error, g=group:
+                                       self.quick_status(g, data, error))
+
+    def quick_status(self, group, data, error):
+        self.quick_pending[group] = False
+        if self.quick_busy[group]:
+            return
+        data = data or {}
+        if group == "media":
+            self.media_state = data if not error else {}
+            available = not error and data.get("available", False)
+            playing = available and data.get("playing", False)
+            self.play_button.setText("Pause" if playing else "Play")
+            self.play_button.setIcon(icon("pause" if playing else "play", size=20))
+            self.play_button.setEnabled(bool(available))
+            self.play_button.setToolTip(error or (data.get("player", "") if available else
+                                                  "Zuerst Musik in Spotify oder ein Video im Browser öffnen."))
+        else:
+            output = next((o for o in data.get("outputs", []) if o.get("default")), None)
+            muted = bool(output and output.get("mute"))
+            self.mute_button.setText("Ton einschalten" if muted else "Stummschalten")
+            self.mute_button.setIcon(icon("muted" if muted else "sound", size=20))
+            self.mute_button.setEnabled(not error and output is not None)
+            self.mute_button.setToolTip(error or ("Ton für den aktuellen Audioausgang ein-/ausschalten."
+                                                if output else "Kein Audioausgang verfügbar."))
+
+    def quick_action(self, group):
+        if self.quick_busy[group]:
+            return
+        if self.preview:
+            self.set_feedback("Vorschau: Die Wiedergabe und der Ton bleiben unverändert.")
+            return
+        self.quick_busy[group] = True
+        button = self.play_button if group == "media" else self.mute_button
+        button.setEnabled(False)
+        operation = "media_playpause" if group == "media" else "audio_toggle"
+        args = {"player": self.media_state.get("player")} if group == "media" else {}
+        def finished(data, error):
+            self.quick_busy[group] = False
+            self.set_feedback(error or "")
+            self.refresh_quick_controls()
+        self.device_client.request(operation, args, finished)
 
     def resizeEvent(self, event):
         self.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12, 24 if self.width() < 1000 else 40, 14)
