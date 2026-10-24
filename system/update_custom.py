@@ -15,7 +15,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-REPOSITORY = "https://github.com/0Inexis0/saar-fighters-updates.git"
+REPOSITORY = "https://github.com/0Inexis0/saar-fighters.git"
 BRANCH = "main"
 # Only these project-owned integration files are replaced. No account, boot,
 # partition, network, authentication or desktop-preference setup is rerun.

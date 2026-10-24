@@ -1,0 +1,5 @@
+com.spotify.Client	1.2.95.453.g0eeebbed	stable
+org.freedesktop.Platform	freedesktop-sdk-25.08.18	25.08
+org.freedesktop.Platform.GL.default	26.2.4	25.08
+org.freedesktop.Platform.GL.default	26.2.4	25.08-extra
+org.freedesktop.Platform.codecs-extra		25.08-extra

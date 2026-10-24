@@ -39,7 +39,7 @@ pacman -Syu --needed --noconfirm git
 stage=$(mktemp -d /var/tmp/saar-setup.XXXXXX)
 trap 'rm -rf -- "$stage"' EXIT
 git -c core.hooksPath=/dev/null clone --depth=1 --single-branch --branch main \
-    https://github.com/0Inexis0/saar-fighters-updates.git "$stage/source"
+    https://github.com/0Inexis0/saar-fighters.git "$stage/source"
 source_dir=$stage/source
 revision=$(git -C "$source_dir" rev-parse HEAD)
 packages=(plasma-desktop plasma-nm plasma-pa bluedevil breeze-gtk sddm xorg-server
