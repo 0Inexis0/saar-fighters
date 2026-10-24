@@ -214,8 +214,11 @@ ein bootfähiges System ein.
   Zugangsdaten und Tokens gehören niemals ins Repository.
 - VM-Tests ersetzen keine Prüfung des realen WLAN-/Bluetooth-Chips,
   der Boxen, der Akkulaufzeit oder der Leistung des Vereinslaptops.
-- Akku-Energiesparen bleibt dem KDE-Standard überlassen. Im Netzbetrieb ist
-  automatischer Suspend für das Vereinsprofil deaktiviert.
+- Im Vereinsprofil bleiben Bildschirm und Sitzung bei Inaktivität eingeschaltet,
+  auch im Akku- und Niedrigakku-Profil. Automatisches Abdunkeln, Bildschirmabschalten,
+  Sperren und Inaktivitäts-Suspend sind deaktiviert. Die Einstellung wird bei jeder
+  Anmeldung auch auf bestehenden Installationen übernommen. Manuelle Aktionen,
+  Zuklappen und der Schutz bei kritisch leerem Akku bleiben unverändert.
 - Der einfache WLAN-Dialog unterstützt sichtbare Netze mit WPA2/WPA3-Personal
   sowie offene/OWE-Netze. Versteckte Netze, Unternehmensanmeldung (802.1X) und
   Sonderkonfigurationen werden durch die Administration eingerichtet.

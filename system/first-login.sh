@@ -2,6 +2,11 @@
 set -euo pipefail
 [[ $(id -un) == saar ]] || exit 0
 mkdir -p "$HOME/.local/state"
+# Apply before any layout-marker early return, including updated laptops.
+if [[ $(/usr/bin/python /opt/saar-fighters/system/configure_display.py) == changed ]]; then
+    systemctl --user try-restart plasma-powerdevil.service || \
+        echo "Bildschirmeinstellungen gespeichert; Energiedienst konnte nicht neu geladen werden." >&2
+fi
 # Run every login, including existing installations after an update.
 # This is independent of the one-time desktop layout migration below.
 for attempt in {1..30}; do

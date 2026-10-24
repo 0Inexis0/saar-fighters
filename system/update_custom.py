@@ -28,6 +28,7 @@ INTEGRATIONS = (
     ("system/desktoptheme/saar-olive", "usr/share/plasma/desktoptheme/saar-olive", None),
 )
 REQUIRED = (
+    "system/configure_display.py",
     "app/slideshow.py", "app/idle_watch.py", "app/assets/slideshow/credits.json",
     "app/assets/slideshow/airsoft-shooter.jpg", "app/assets/slideshow/airsoft-squad.jpg",
     "app/assets/slideshow/airsoft-team.jpg",
