@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 from devices import AudioSheet, BluetoothSheet, DeviceClient, WifiSheet, label
 from hardware import status_labels
+from slideshow import IdleSlideshow
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "assets"
@@ -133,26 +134,29 @@ class Tile(QPushButton):
         self.setAccessibleName(title)
         self.setAccessibleDescription(subtitle)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 12, 20, 12)
-        top = QHBoxLayout()
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(4)
+        layout.addStretch()
         image = QLabel()
         # The original YouTube artwork includes its own clear space.
-        icon_size = QSize(56, 48) if symbol == "youtube" else QSize(40, 40)
+        icon_size = QSize(84, 72) if symbol == "youtube" else QSize(64, 64)
         image.setPixmap(button_icon(symbol).pixmap(icon_size))
-        top.addWidget(image)
-        top.addStretch()
-        layout.addLayout(top)
-        layout.addStretch()
+        image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        image.setFixedHeight(72)
+        layout.addWidget(image)
         text = QLabel(title)
         text.setWordWrap(True)
+        text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         text.setObjectName("tileTitle")
         text.setStyleSheet(f"color: {'#24261b' if accent else '#efede3'};")
         layout.addWidget(text)
         sub = QLabel(subtitle)
         sub.setWordWrap(True)
+        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub.setObjectName("tileSubtitle")
         sub.setStyleSheet(f"color: {'#41452e' if accent else '#b7b6a6'};")
         layout.addWidget(sub)
+        layout.addStretch()
         for child in self.findChildren(QLabel):
             child.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.clicked.connect(action)
@@ -239,7 +243,7 @@ class SettingsDialog(QDialog):
     def __init__(self, home):
         super().__init__(home)
         self.setWindowTitle("Einstellungen")
-        self.resize(660, 440)
+        self.resize(660, 520)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
@@ -383,6 +387,7 @@ class Home(QWidget):
         layout.addLayout(footer)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setFocus()
+        self.slideshow = IdleSlideshow(self, ASSETS / "slideshow", preview)
 
     def paintEvent(self, event):
         painter = QPainter(self)

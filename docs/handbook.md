@@ -50,6 +50,16 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 
 ## Bedienung
 
+- Nach fünf Minuten ohne Eingabe startet auf dem Plasma-Wayland-Desktop eine
+  bildschirmfüllende Airsoft-Diashow. Drei lokal gespeicherte Bilder wechseln
+  alle zwölf Sekunden in zufälliger Reihenfolge, ohne direkte Wiederholung.
+  Mausbewegung, Tastendruck oder Klick kehren zur bisherigen Anwendung zurück.
+  Die Musik läuft weiter. Offene Einstellungs- und Bestätigungsdialoge werden
+  nicht überdeckt. Die Diashow ist kein Sperrbildschirm.
+  Die globale Erkennung verwendet `ext-idle-notify` von Wayland. Mit Version 2
+  zählen reine Eingabepausen; bei Version 1 können Video-Apps den Start hemmen.
+  In der Vorschau und unter X11 startet die Diashow nicht automatisch.
+
 - Play/Pause unten auf der Startseite steuert einen erreichbaren Medienplayer.
   Laufende Wiedergabe hat Vorrang, bei Gleichstand Spotify. Ohne Player ist
   der Knopf deaktiviert. Spotify und Browser mit MPRIS-Unterstützung werden erkannt.

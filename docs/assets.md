@@ -1,5 +1,23 @@
 # Bildnachweis
 
+## Airsoft-Diashow
+
+Die drei Original-JPEGs unter `app/assets/slideshow/` wurden am 24. Oktober
+2026 von Wikimedia Commons geladen und unverändert gespeichert. Die Anzeige
+skaliert sie proportional. Fotograf, Quelle und Lizenz stehen zusätzlich in
+`credits.json`; die Diashow zeigt den Bildnachweis am unteren Rand.
+
+- [Airsoft Designed Shooter](https://commons.wikimedia.org/wiki/File:Airsoft_Designed_Shooter.jpg):
+  Myneone, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+- [Airsoft squad](https://commons.wikimedia.org/wiki/File:Airsoft_squad.jpg):
+  Od5563 / BEAR Airsoft, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- [ASD Decima Airborne Softair Team - Pisa - In Action](https://commons.wikimedia.org/wiki/File:ASD_Decima_Airborne_Softair_Team_-_Pisa_-_In_Action.jpg):
+  Mamusque, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+
+Diese Fotos sind nicht von der MIT-Lizenz des Programmcodes erfasst.
+
+## Weitere Bilder
+
 `app/assets/club-logo.gif` ist das unveränderte Vereinslogo von
 **Saar-Fighters AS e.V.**, heruntergeladen am 20. Oktober 2026.
 Die Oberfläche skaliert es proportional.

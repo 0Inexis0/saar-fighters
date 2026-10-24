@@ -25,7 +25,7 @@ class WindowLaunchTests(unittest.TestCase):
                 windowList: function() { return [existing]; }};
         """)
         script = Path(__file__).resolve().parents[1] / "system/maximize-apps.js"
-        result = self.engine.evaluate(script.read_text(), str(script))
+        result = self.engine.evaluate(script.read_text(encoding="utf-8"), str(script))
         self.assertFalse(result.isError(), result.toString())
 
     def test_existing_and_new_main_windows_maximize(self):
@@ -52,3 +52,15 @@ class WindowLaunchTests(unittest.TestCase):
             added(w); w.calls;
         """)
         self.assertEqual(result.toInt(), 1)
+
+    def test_only_our_slideshow_receives_idle_focus(self):
+        result = self.engine.evaluate("""
+            var w = windowDouble('saar-home'); w.caption = 'Saar-Fighters · Diashow';
+            added(w); workspace.activeWindow === w;
+        """)
+        self.assertTrue(result.toBool())
+        result = self.engine.evaluate("""
+            var other = windowDouble('unrelated-app'); other.caption = w.caption;
+            added(other); workspace.activeWindow === w;
+        """)
+        self.assertTrue(result.toBool())
