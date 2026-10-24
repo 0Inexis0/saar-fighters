@@ -54,6 +54,10 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 - Internet: Firefox.
 - YouTube: große Kachel, öffnet YouTube in Firefox.
 - Dateien: Dolphin, unter anderem für Musik und USB-Sticks.
+- Firefox (einschließlich YouTube und Vereinswebseite), Spotify und Dolphin
+  starten maximiert. Die Taskleiste bleibt sichtbar; Dialoge behalten ihre
+  normale Größe. Die Fenster lassen sich weiterhin verkleinern.
+  Die Einrichtung greift beim Anmelden, auch nach Updates bestehender Rechner.
 - Einstellungen: zentrale Kachel für WLAN, Bluetooth, Lautstärke und Updates.
   Die Auswahl öffnet die eigenen, einheitlich gestalteten Dialoge.
   WLAN auswählen und Passwort eingeben; Bluetooth suchen, koppeln und verbinden;

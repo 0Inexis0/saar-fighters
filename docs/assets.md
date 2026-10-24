@@ -16,6 +16,12 @@ Es ist für die vom Verein angefragte Vereinsoberfläche eingebunden.
 Bestandteile dieses Projekts.
 
 Spotify und Firefox verwenden weiterhin ihre installierten Original-App-Logos.
+YouTube verwendet das unveränderte rote Original-PNG aus dem offiziellen
+[YouTube-Markenportal](https://brand.youtube/youtube-icon), heruntergeladen am
+24. Oktober 2026. Datei: `app/assets/youtube.png`, Quelle:
+https://www.gstatic.com/marketing-cms/78/29/3e68a1414bb28d0b7e47b44c3c91/youtube-icon.zip
+Das YouTube-Logo ist nicht von der MIT-Lizenz des Projekts erfasst.
+
 Die übrigen Aktionsbuttons verwenden mitgelieferte **Fluent UI System Icons**
 von Microsoft (MIT-Lizenz), mit unveränderter Geometrie und angepassten
 Olive-/Khaki-Farben. Quelle, exakte Revision und Lizenz liegen unter

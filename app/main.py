@@ -82,6 +82,8 @@ def configure_icons():
 
 
 def button_icon(name, size=40):
+    if name == "youtube":
+        return QIcon(str(ASSETS / "youtube.png"))
     if name == "club":
         return QIcon(str(ASSETS / "club-logo.gif"))
     flat_icon = ASSETS / "fluent" / f"{name}.svg"
@@ -131,7 +133,9 @@ class Tile(QPushButton):
         layout.setContentsMargins(20, 12, 20, 12)
         top = QHBoxLayout()
         image = QLabel()
-        image.setPixmap(button_icon(symbol).pixmap(QSize(40, 40)))
+        # The original YouTube artwork includes its own clear space.
+        icon_size = QSize(56, 48) if symbol == "youtube" else QSize(40, 40)
+        image.setPixmap(button_icon(symbol).pixmap(icon_size))
         top.addWidget(image)
         top.addStretch()
         layout.addLayout(top)

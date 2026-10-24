@@ -2,6 +2,23 @@
 set -euo pipefail
 [[ $(id -un) == saar ]] || exit 0
 mkdir -p "$HOME/.local/state"
+# Run every login, including existing installations after an update.
+# This is independent of the one-time desktop layout migration below.
+for attempt in {1..30}; do
+    if /usr/lib/qt6/bin/qdbus org.kde.KWin /Scripting \
+        org.kde.kwin.Scripting.isScriptLoaded saar-maximize-apps | grep -qx true; then
+        /usr/lib/qt6/bin/qdbus org.kde.KWin /Scripting org.kde.kwin.Scripting.start
+        break
+    fi
+    if script_id=$(/usr/lib/qt6/bin/qdbus org.kde.KWin /Scripting \
+        org.kde.kwin.Scripting.loadScript \
+        /opt/saar-fighters/system/maximize-apps.js saar-maximize-apps) \
+        && [[ "$script_id" =~ ^[0-9]+$ ]] \
+        && /usr/lib/qt6/bin/qdbus org.kde.KWin /Scripting org.kde.kwin.Scripting.start; then
+        break
+    fi
+    sleep 1
+done
 # Apply the panel style independently of the one-time layout migration.
 if [[ ! -f "$HOME/.local/state/saar-panel-olive-v1" ]]; then
     plasma-apply-desktoptheme saar-olive
