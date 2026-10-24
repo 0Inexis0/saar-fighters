@@ -23,7 +23,9 @@ SOCKET = f"saar-home-{os.getuid()}"
 CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 
 PATHS = {
+    "youtube": '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/>',
     "music": '<path d="M9 18V5l12-3v13M9 8l12-3"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="18" cy="15" rx="3" ry="2"/>',
+    "settings": '<circle cx="12" cy="12" r="3"/><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v3l1 2-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1-2v-3l-1-2 2-3 2 .2z"/>',
     "web": '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/>',
     "wifi": '<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="20" r=".8"/>',
     "sound": '<path d="M3 9h4l5-4v14l-5-4H3zM16 8a6 6 0 0 1 0 8M19 4a11 11 0 0 1 0 16"/>',
@@ -52,6 +54,8 @@ def icon(name, color="#e6e9df", size=40):
 
 
 BUTTON_ICONS = {
+    "youtube": (),
+    "settings": ("preferences-system",),
     "music": ("com.spotify.Client", "spotify"),
     "web": ("firefox",),
     "folder": ("org.kde.dolphin", "system-file-manager"),
@@ -78,6 +82,8 @@ def configure_icons():
 
 
 def button_icon(name, size=40):
+    if name == "club":
+        return QIcon(str(ASSETS / "club-logo.gif"))
     flat_icon = ASSETS / "fluent" / f"{name}.svg"
     if flat_icon.is_file():
         return QIcon(str(flat_icon))
@@ -131,6 +137,7 @@ class Tile(QPushButton):
         layout.addLayout(top)
         layout.addStretch()
         text = QLabel(title)
+        text.setWordWrap(True)
         text.setObjectName("tileTitle")
         text.setStyleSheet(f"color: {'#24261b' if accent else '#efede3'};")
         layout.addWidget(text)
@@ -221,6 +228,36 @@ class UpdateDialog(QDialog):
             super().closeEvent(event)
 
 
+class SettingsDialog(QDialog):
+    def __init__(self, home):
+        super().__init__(home)
+        self.setWindowTitle("Einstellungen")
+        self.resize(660, 440)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+        layout.addWidget(label("Einstellungen", "font-size: 28px; font-weight: 700;"))
+        layout.addWidget(label("Verbindungen, Ton und Updates für euren Rechner."))
+        grid = QGridLayout()
+        grid.setSpacing(16)
+        self.tiles = {}
+        for i, (symbol, title, subtitle, action) in enumerate((
+            ("wifi", "WLAN", "Netzwerk verbinden", "wifi"),
+            ("bluetooth", "Bluetooth", "Geräte verbinden", "bluetooth"),
+            ("sound", "Lautstärke", "Boxen & Audioausgang", "sound"),
+            ("update", "Updates", "System & Apps aktualisieren", "updates"),
+        )):
+            callback = (lambda: home.show_updates(self)) if action == "updates" else (
+                lambda checked=False, a=action: home.open_device(a, self))
+            tile = Tile(symbol, title, subtitle, callback)
+            self.tiles[action] = tile
+            grid.addWidget(tile, i // 2, i % 2)
+        layout.addLayout(grid, 1)
+        self.back_button = QPushButton("Zurück zur Startseite")
+        self.back_button.clicked.connect(self.reject)
+        layout.addWidget(self.back_button)
+
+
 class Home(QWidget):
     def __init__(self, preview=False):
         super().__init__()
@@ -295,10 +332,10 @@ class Home(QWidget):
         specs = [
             ("music", "Spotify", "Der Sound für euren Tag", "spotify", False),
             ("web", "Internet", "Browser öffnen", "web", False),
+            ("youtube", "YouTube", "Videos & Musik öffnen", "youtube", False),
             ("folder", "Dateien", "Musik, Bilder & USB-Sticks", "files", False),
-            ("wifi", "WLAN", "Netzwerk verbinden", "wifi", False),
-            ("sound", "Lautstärke", "Boxen & Audioausgang", "sound", False),
-            ("bluetooth", "Bluetooth", "Geräte verbinden", "bluetooth", False),
+            ("club", "Vereinswebseite", "Saar-Fighters AS e.V.", "club", False),
+            ("settings", "Einstellungen", "WLAN, Bluetooth, Ton & Updates", "settings", False),
         ]
         self.tiles = {}
         for i, (symbol, title, subtitle, action, accent) in enumerate(specs):
@@ -312,17 +349,6 @@ class Home(QWidget):
         self.feedback.setWordWrap(True)
         layout.addWidget(self.feedback)
         footer = QHBoxLayout()
-        self.update_button = QPushButton("  Updates")
-        self.update_button.setIcon(button_icon("update", 22))
-        self.update_button.setIconSize(QSize(22, 22))
-        self.update_button.clicked.connect(self.show_updates)
-        footer.addWidget(self.update_button)
-        footer.addStretch()
-        self.website_button = QPushButton("Vereinswebseite")
-        self.website_button.setAccessibleName("Vereinswebseite öffnen")
-        self.website_button.clicked.connect(lambda: self.launch("club"))
-        footer.addWidget(self.website_button)
-
         footer.addStretch()
         for symbol, text, action in (("restart", "Neustart", "reboot"), ("power", "Ausschalten", "poweroff")):
             button = QPushButton(f"  {text}")
@@ -368,11 +394,15 @@ class Home(QWidget):
             "web": ["firefox", "--new-window", "https://start.duckduckgo.com"],
             "files": ["dolphin", str(Path.home())],
             "club": ["firefox", "--new-window", CLUB_WEBSITE],
+            "youtube": ["firefox", "--new-window", "https://www.youtube.com/"],
             "install": [sys.executable, str(HERE.parent / "installer/ui.py")],
         }[action]
 
     def launch(self, action):
         self.last_action = action
+        if action == "settings":
+            self.show_settings()
+            return
         if action in ("wifi", "bluetooth", "sound"):
             self.open_device(action)
             return
@@ -396,9 +426,14 @@ class Home(QWidget):
         self.feedback.setText(text)
         self.feedback.setVisible(bool(text))
 
-    def open_device(self, action):
+    def show_settings(self):
+        dialog = SettingsDialog(self)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def open_device(self, action, parent=None):
         sheet = {"wifi": WifiSheet, "bluetooth": BluetoothSheet, "sound": AudioSheet}[action](
-            self, self.device_client)
+            parent or self, self.device_client)
         sheet.exec()
         sheet.deleteLater()
 
@@ -409,9 +444,10 @@ class Home(QWidget):
             self.processes.remove(process)
         process.deleteLater()
 
-    def show_updates(self):
-        dialog = UpdateDialog(self, self.preview)
+    def show_updates(self, parent=None):
+        dialog = UpdateDialog(parent or self, self.preview)
         dialog.exec()
+        dialog.deleteLater()
 
     def power(self, action):
         if action not in ("reboot", "poweroff"):

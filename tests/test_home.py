@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
-from main import Home, STYLE, UpdateDialog
+from main import Home, SettingsDialog, STYLE, UpdateDialog
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -32,12 +32,12 @@ class HomeTests(unittest.TestCase):
         self.app.processEvents()
 
     def test_all_tiles_are_clickable_without_launching_in_preview(self):
-        with patch.object(QProcess, "start") as start, patch.object(self.home, "open_device") as device:
+        with patch.object(QProcess, "start") as start, patch.object(self.home, "show_settings") as settings:
             for action, tile in self.home.tiles.items():
                 QTest.mouseClick(tile, Qt.MouseButton.LeftButton)
                 self.assertEqual(self.home.last_action, action)
-                if action in ("wifi", "bluetooth", "sound"):
-                    device.assert_called_with(action)
+                if action == "settings":
+                    settings.assert_called_once_with()
                 else:
                     self.assertIn("Vorschau", self.home.feedback.text())
             start.assert_not_called()
@@ -51,7 +51,22 @@ class HomeTests(unittest.TestCase):
                 self.assertTrue(self.home.rect().contains(tile.geometry()))
                 self.assertGreaterEqual(tile.width(), 170)
                 self.assertGreaterEqual(tile.height(), 104)
-            self.assertTrue(self.home.rect().contains(self.home.update_button.geometry()))
+
+    def test_settings_navigation_and_return(self):
+        self.assertEqual(set(self.home.tiles), {"spotify", "web", "youtube", "files", "club", "settings"})
+        dialog = SettingsDialog(self.home)
+        dialog.show()
+        self.app.processEvents()
+        with patch.object(self.home, "open_device") as device, patch.object(self.home, "show_updates") as updates:
+            for action in ("wifi", "bluetooth", "sound"):
+                QTest.mouseClick(dialog.tiles[action], Qt.MouseButton.LeftButton)
+                device.assert_called_with(action, dialog)
+            QTest.mouseClick(dialog.tiles["updates"], Qt.MouseButton.LeftButton)
+            updates.assert_called_once_with(dialog)
+        QTest.mouseClick(dialog.back_button, Qt.MouseButton.LeftButton)
+        self.assertFalse(dialog.isVisible())
+        self.assertTrue(self.home.isVisible())
+        dialog.deleteLater()
 
     def choose_power(self, confirm):
         modal = QApplication.activeModalWidget()

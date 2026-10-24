@@ -52,14 +52,16 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 
 - Spotify: native Flatpak-App, wenn installiert; sonst Spotify im Browser.
 - Internet: Firefox.
+- YouTube: große Kachel, öffnet YouTube in Firefox.
 - Dateien: Dolphin, unter anderem für Musik und USB-Sticks.
-- WLAN, Lautstärke und Bluetooth: eigene, einheitlich gestaltete Dialoge.
+- Einstellungen: zentrale Kachel für WLAN, Bluetooth, Lautstärke und Updates.
+  Die Auswahl öffnet die eigenen, einheitlich gestalteten Dialoge.
   WLAN auswählen und Passwort eingeben; Bluetooth suchen, koppeln und verbinden;
   Audioausgang, Lautstärke und Stummschaltung einstellen.
 - Statusleiste: Netzwerkverbindung, verbundene Bluetooth-Geräte, Netzteil und
   Akku mit Prozentwert und Ladezustand. Fehlende Hardware und unbekannte Werte
   werden ausdrücklich angezeigt. Details erscheinen beim Darüberfahren.
-- Vereinswebseite: direkter Knopf zur offiziellen Seite.
+- Vereinswebseite: große Kachel mit Vereinslogo zur offiziellen Seite.
 - Oberfläche, Systemsprachumgebung, Qt-Dialoge und Firefox sind auf Deutsch
   eingestellt. Spotify übernimmt die deutsche Sprachumgebung.
 - Updates: sichtbarer Fortschritt, Administratorfreigabe und ehrliche

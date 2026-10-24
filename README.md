@@ -16,7 +16,7 @@
 
 ![Saar-Fighters Desktop](docs/desktop.png)
 
-Spotify, Firefox und Dateien auf einen Klick. WLAN, Bluetooth und Lautstärke direkt erreichbar. Matte Olive-Optik, große Buttons und gemeinsame Updates für System und Oberfläche.
+Spotify, Firefox und Dateien auf einen Klick. WLAN, Bluetooth, Lautstärke und Updates gemeinsam in der Kachel „Einstellungen“. Matte Olive-Optik, große Buttons und gemeinsame Updates für System und Oberfläche.
 
 ## Loslegen
 
