@@ -1,0 +1,8 @@
+# Ventoy custom_boot: load Archiso directly through GRUB, without EFI CD emulation.
+# vtoy_chosen_path and vtoy_iso_part are supplied by Ventoy.
+echo "Saar-Fighters: direkter Ventoy-Start ..."
+probe --set=saar_usb_uuid --fs-uuid ${vtoy_iso_part}
+loopback saariso "${vtoy_iso_part}${vtoy_chosen_path}"
+linux (saariso)/saar/boot/x86_64/vmlinuz-linux archisobasedir=saar img_dev=/dev/disk/by-uuid/${saar_usb_uuid} img_loop="${vtoy_chosen_path}" earlymodules=loop
+initrd (saariso)/saar/boot/x86_64/initramfs-linux.img
+boot

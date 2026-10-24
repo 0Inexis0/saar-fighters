@@ -1,0 +1,8 @@
+{
+  "custom_boot": [
+    {
+      "file": "/saar-fighters-os-0.2.0-2026.10.23-x86_64.iso",
+      "vcfg": "/ventoy/saar-fighters.vcfg"
+    }
+  ]
+}

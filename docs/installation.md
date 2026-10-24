@@ -21,6 +21,17 @@ zur Verfügung. Er richtet die Oberfläche ein, ohne Laufwerke zu formatieren.
    sich ausprobieren, bevor etwas installiert wird. Spotify benötigt zum
    Anmelden und Streamen weiterhin eine Internetverbindung.
 
+## Mit Ventoy
+
+Bei Ventoy die fertige ISO als Datei auf die große USB-Partition kopieren.
+Falls der Start mit `EFI stub: Failed to decompress kernel` scheitert, steht im
+[Release 0.2.0](https://github.com/0Inexis0/saar-fighters-updates/releases/tag/v0.2.0)
+das Paket **`ventoy-compat-0.2.0.zip`** bereit. Es ergänzt einen direkten
+GRUB-Start für Saar-Fighters; die ISO bleibt unverändert. Die enthaltene Anleitung
+beachten und eine vorhandene `ventoy.json` zusammenführen, nicht überschreiben.
+Der alternative Startweg wurde mit Ventoy 1.1.17 unter virtuellem UEFI getestet;
+die Wirkung auf dem Laptop mit dem gemeldeten Fehler ist noch nicht bestätigt.
+
 ## Installieren
 
 1. Persönliche Daten des Ziellaufwerks vorher sichern und das Netzteil anschließen.
