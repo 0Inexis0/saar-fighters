@@ -6,17 +6,20 @@ from pathlib import Path
 import shutil
 import sys
 
-from PySide6.QtCore import QLibraryInfo, QLocale, QProcess, QTranslator, Qt, QTimer, QSize, QRectF
+from PySide6.QtCore import QEvent, QLibraryInfo, QLocale, QProcess, QTranslator, Qt, QTimer, QSize, QRectF
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-    QMessageBox, QPlainTextEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
+from applications import Application, SHORTCUTS, application_catalog
 from devices import AudioSheet, BluetoothSheet, BrightnessSheet, DeviceClient, WifiSheet, label
 from hardware import status_labels
 from slideshow import IdleSlideshow
+from media_content import ArtworkLoader
+from music_player import ArtworkView, MusicPlayerDialog
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "assets"
@@ -24,6 +27,12 @@ SOCKET = f"saar-home-{getattr(os, 'getuid', lambda: 0)()}"
 CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 
 PATHS = {
+    "expand": '<path d="M14 3h7v7M21 3l-7 7M10 21H3v-7M3 21l7-7"/>',
+    "collapse": '<path d="m5 9 7 7 7-7"/>',
+    "shuffle": '<path d="M3 6h3c5 0 7 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 4-2 6-6s4-6 6-6h3m-4-4 4 4-4 4"/>',
+    "repeat": '<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/>',
+    "repeat_one": '<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3m8-8 2-1v6"/>',
+    "apps": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     "play": '<path d="m8 4 12 8-12 8z"/>',
     "pause": '<path d="M8 4v16M16 4v16"/>',
     "previous": '<path d="M5 5v14m14-14L8 12l11 7z"/>',
@@ -62,6 +71,7 @@ def icon(name, color="#e6e9df", size=40):
 
 
 BUTTON_ICONS = {
+    "apps": (),
     "rocket": (),
     "youtube": (),
     "settings": ("preferences-system",),
@@ -172,35 +182,49 @@ class Tile(QPushButton):
 
 class MusicTile(QFrame):
     """Now-playing information and controls for the selected session player."""
-    def __init__(self, action):
+    def __init__(self, action, expand):
         super().__init__()
+        self.expand = expand
         self.setObjectName("musicTile")
         self.setAccessibleName("Musikplayer")
         self.setMinimumSize(150, 160)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.artwork = ArtworkView(icon, self)
+        self.artwork.fill_tile = True
+        self.artwork.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.artwork.lower()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(5)
-        layout.addStretch()
         heading = QHBoxLayout()
-        heading.setSpacing(6)
+        heading.setSpacing(4)
+        heading.addWidget(label("Musik", "font-size: 14px; font-weight: 700;"))
         heading.addStretch()
-        symbol = QLabel()
-        symbol.setPixmap(icon("music", "#c3b48b", 18).pixmap(QSize(18, 18)))
-        heading.addWidget(symbol)
-        heading.addWidget(label("Musikplayer", "font-size: 14px; font-weight: 700;"))
-        heading.addStretch()
+        self.expand_button = QPushButton()
+        self.expand_button.setObjectName("musicControl")
+        self.expand_button.setFixedSize(30, 30)
+        self.expand_button.setStyleSheet("min-height: 30px; max-height: 30px;")
+        self.expand_button.setIcon(icon("expand", "#c3b48b", 16))
+        self.expand_button.setAccessibleName("Musikplayer aufklappen")
+        self.expand_button.setToolTip("Großer Player mit Lyrics")
+        self.expand_button.clicked.connect(expand)
+        heading.addWidget(self.expand_button)
         layout.addLayout(heading)
+        layout.addStretch(1)
         self.source = StatusValue()
-        self.source.setStyleSheet("color: #b7b6a6; font-size: 11px;")
+        self.source.setStyleSheet("color: #d4d8cc; font-size: 11px;")
         self.track = StatusValue()
         self.track.setStyleSheet("font-size: 16px; font-weight: 700;")
         self.artist = StatusValue()
-        self.artist.setStyleSheet("color: #b7b6a6; font-size: 12px;")
-        for widget in (self.source, self.track, self.artist):
+        self.artist.setStyleSheet("color: #e1e4db; font-size: 12px;")
+        for widget in (self.track, self.artist):
             widget.setTextFormat(Qt.TextFormat.PlainText)
-            widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(widget)
+        self.source.setTextFormat(Qt.TextFormat.PlainText)
+        self.source.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.source)
         controls = QHBoxLayout()
         controls.setSpacing(4)
         controls.addStretch()
@@ -210,6 +234,7 @@ class MusicTile(QFrame):
             button = QPushButton()
             button.setObjectName("musicPlay" if name == "playpause" else "musicControl")
             button.setFixedSize(44 if name == "playpause" else 32, 36)
+            button.setStyleSheet("min-height: 36px; max-height: 36px;")
             button.setIcon(icon("play" if name == "playpause" else name,
                                 "#24261b" if name == "playpause" else "#eeece1", 18))
             button.setIconSize(QSize(18, 18))
@@ -221,7 +246,6 @@ class MusicTile(QFrame):
             self.buttons[name] = button
         controls.addStretch()
         layout.addLayout(controls)
-        layout.addStretch()
         self.update_state({})
 
     def update_state(self, data, error=None):
@@ -249,6 +273,22 @@ class MusicTile(QFrame):
         for button in self.buttons.values():
             button.setEnabled(False)
 
+    def resizeEvent(self, event):
+        self.artwork.setGeometry(self.rect())
+        super().resizeEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.rect().contains(event.position().toPoint()):
+            self.expand()
+        super().mouseReleaseEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self.expand()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
 
 class UpdateDialog(QDialog):
     def __init__(self, parent, preview=False):
@@ -257,6 +297,7 @@ class UpdateDialog(QDialog):
         self.resize(740, 490)
         layout = QVBoxLayout(self)
         title = QLabel("Updates für euren Rechner.")
+        title.setWordWrap(True)
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
         layout.addWidget(title)
         info = QLabel("Aktualisiert Arch, Flatpak-Apps und Saar-Fighters von GitHub/main.\n"
@@ -327,37 +368,301 @@ class UpdateDialog(QDialog):
             super().closeEvent(event)
 
 
+class AppTile(QPushButton):
+    def __init__(self, application, action):
+        super().__init__()
+        self.setObjectName("tile")
+        self.setAutoDefault(False)
+        self.setMinimumSize(140, 112)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAccessibleName(application.title)
+        self.setAccessibleDescription(application.description)
+        self.setToolTip(application.title + ("\n" + application.description if application.description else ""))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(5)
+        layout.addStretch()
+        if application.id in {app.id for app in SHORTCUTS}:
+            app_icon = button_icon(application.icon)
+        elif Path(application.icon).is_absolute():
+            app_icon = QIcon(application.icon)
+        else:
+            app_icon = QIcon.fromTheme(application.icon)
+        if app_icon.isNull():
+            app_icon = button_icon("apps")
+        image = QLabel()
+        image.setPixmap(app_icon.pixmap(QSize(48, 48)))
+        image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(image)
+        for text, style in ((application.title, "font-size: 17px; font-weight: 700;"),
+                            (application.description or "Anwendung öffnen", "font-size: 12px; color: #b7b6a6;")):
+            value = StatusValue()
+            value.setTextFormat(Qt.TextFormat.PlainText)
+            value.setStyleSheet(style)
+            value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            value.setText(" ".join(text.split()))
+            layout.addWidget(value)
+        layout.addStretch()
+        for child in self.findChildren(QLabel):
+            child.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.clicked.connect(action)
+
+
+class AppsDialog(QDialog):
+    def __init__(self, home):
+        super().__init__(home)
+        self.home = home
+        self.setWindowTitle("Apps")
+        self.resize(min(home.width() - 32, 1200), min(home.height() - 24, 720))
+        self.page = 0
+        self.columns = 3 if self.width() < 900 else 4
+        self.applications = []
+        self.filtered = []
+        self.tiles = {}
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        header = QHBoxLayout()
+        header.addWidget(label("Apps", "font-size: 28px; font-weight: 700;"))
+        self.count_label = label("", "color: #b7b6a6;")
+        header.addWidget(self.count_label)
+        header.addStretch()
+        self.back_button = QPushButton("Zurück zur Startseite")
+        self.back_button.clicked.connect(self.reject)
+        header.addWidget(self.back_button)
+        layout.addLayout(header)
+        search_row = QHBoxLayout()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Apps suchen …")
+        self.search.setAccessibleName("Apps suchen")
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self.filter_apps)
+        search_row.addWidget(self.search, 1)
+        self.refresh_button = QPushButton("Neu laden")
+        self.refresh_button.clicked.connect(self.reload_apps)
+        search_row.addWidget(self.refresh_button)
+        layout.addLayout(search_row)
+        self.grid = QGridLayout()
+        self.grid.setSpacing(14)
+        layout.addLayout(self.grid, 1)
+        self.empty_label = label("Keine Apps gefunden. Versuche einen anderen Suchbegriff.")
+        self.empty_label.setWordWrap(True)
+        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.feedback = label("", "color: #c3b48b; font-size: 12px;")
+        self.feedback.setWordWrap(True)
+        self.feedback.hide()
+        layout.addWidget(self.feedback)
+        navigation = QHBoxLayout()
+        self.previous_button = QPushButton("Vorherige Seite")
+        self.next_button = QPushButton("Nächste Seite")
+        self.previous_button.clicked.connect(lambda: self.change_page(-1))
+        self.next_button.clicked.connect(lambda: self.change_page(1))
+        self.page_label = label("")
+        self.page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        navigation.addWidget(self.previous_button)
+        navigation.addWidget(self.page_label, 1)
+        navigation.addWidget(self.next_button)
+        layout.addLayout(navigation)
+        self.reload_apps()
+        self.search.setFocus()
+        for button in self.findChildren(QPushButton):
+            button.setAutoDefault(False)
+
+    @property
+    def page_size(self):
+        return self.columns * 2
+
+    @property
+    def page_count(self):
+        return max(1, (len(self.filtered) + self.page_size - 1) // self.page_size)
+
+    def reload_apps(self):
+        self.applications = application_catalog()
+        self.filter_apps()
+
+    def filter_apps(self):
+        words = self.search.text().casefold().split()
+        self.filtered = [app for app in self.applications if all(
+            word in f"{app.title} {app.description} {app.id}".casefold() for word in words)]
+        self.page = 0
+        self.show_page()
+
+    def change_page(self, offset):
+        self.page = max(0, min(self.page + offset, self.page_count - 1))
+        self.show_page()
+
+    def show_page(self):
+        self.page = min(self.page, self.page_count - 1)
+        while self.grid.count():
+            widget = self.grid.takeAt(0).widget()
+            widget.hide()
+            if widget is not self.empty_label:
+                widget.deleteLater()
+        self.tiles.clear()
+        start = self.page * self.page_size
+        for index, application in enumerate(self.filtered[start:start + self.page_size]):
+            tile = AppTile(application, lambda checked=False, app=application: self.open_app(app))
+            self.tiles[application.id] = tile
+            self.grid.addWidget(tile, index // self.columns, index % self.columns)
+        for column in range(4):
+            self.grid.setColumnStretch(column, 1 if column < self.columns else 0)
+            self.grid.setColumnMinimumWidth(column, 0)
+        for row in range(2):
+            self.grid.setRowStretch(row, 1)
+        if not self.filtered:
+            self.grid.addWidget(self.empty_label, 0, 0, 2, self.columns)
+            self.empty_label.show()
+        total = len(self.applications)
+        self.count_label.setText(f"{len(self.filtered)} von {total} Apps" if self.search.text().strip() else f"{total} Apps")
+        self.page_label.setText(f"Seite {self.page + 1} von {self.page_count}" if self.filtered else "Keine Treffer")
+        self.previous_button.setEnabled(self.page > 0)
+        self.next_button.setEnabled(self.page + 1 < self.page_count)
+
+    def open_app(self, application):
+        if self.home.launch_application(application):
+            self.accept()
+        else:
+            self.feedback.setText(self.home.feedback.text())
+            self.feedback.setVisible(bool(self.feedback.text()))
+
+    def resizeEvent(self, event):
+        columns = 3 if self.width() < 900 else 4
+        if columns != self.columns:
+            first = self.page * self.page_size
+            self.columns = columns
+            self.page = first // self.page_size
+            self.show_page()
+        super().resizeEvent(event)
+
+
 class SettingsDialog(QDialog):
     def __init__(self, home):
         super().__init__(home)
+        self.home = home
+        self.page = None
+        self.current_section = None
+        self.update_page = None
         self.setWindowTitle("Einstellungen")
-        self.resize(min(home.width() - 32, 900), min(home.height() - 24, 520))
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
-        layout.addWidget(label("Einstellungen", "font-size: 28px; font-weight: 700;"))
-        layout.addWidget(label("Verbindungen, Ton, Bildschirm und Updates für euren Rechner."))
-        grid = QGridLayout()
-        grid.setSpacing(16)
-        self.tiles = {}
-        for i, (symbol, title, subtitle, action) in enumerate((
-            ("wifi", "WLAN", "Netzwerk verbinden", "wifi"),
-            ("bluetooth", "Bluetooth", "Geräte verbinden", "bluetooth"),
-            ("sound", "Lautstärke", "Boxen & Audioausgänge", "sound"),
-            ("brightness", "Bildschirm", "Helligkeit anpassen", "brightness"),
-            ("update", "Updates", "System & Apps aktualisieren", "updates"),
-        )):
-            callback = (lambda: home.show_updates(self)) if action == "updates" else (
-                lambda checked=False, a=action: home.open_device(a, self))
-            tile = Tile(symbol, title, subtitle, callback)
-            self.tiles[action] = tile
-            grid.addWidget(tile, i // 3, i % 3, 1, 2 if action == "updates" else 1)
-        for column in range(3):
-            grid.setColumnStretch(column, 1)
-        layout.addLayout(grid, 1)
-        self.back_button = QPushButton("Zurück zur Startseite")
+        self.setObjectName("settingsDialog")
+        self.resize(min(home.width() - 32, 1040), min(home.height() - 24, 660))
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.sidebar = QFrame()
+        self.sidebar.setObjectName("settingsSidebar")
+        self.sidebar.setFixedWidth(188)
+        navigation = QVBoxLayout(self.sidebar)
+        navigation.setContentsMargins(16, 24, 16, 16)
+        navigation.setSpacing(8)
+        navigation.addWidget(label("Einstellungen", "font-size: 21px; font-weight: 700;"))
+        navigation.addSpacing(20)
+        self.nav_buttons = {}
+        for symbol, title, action in (
+            ("wifi", "WLAN", "wifi"),
+            ("bluetooth", "Bluetooth", "bluetooth"),
+            ("sound", "Lautstärke", "sound"),
+            ("brightness", "Bildschirm", "brightness"),
+            ("update", "Updates", "updates"),
+        ):
+            button = QPushButton(title)
+            button.setObjectName("settingsNav")
+            button.setIcon(button_icon(symbol, 22))
+            button.setIconSize(QSize(22, 22))
+            button.setCheckable(True)
+            button.setAutoDefault(False)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(lambda checked=False, section=action: self.select_section(section))
+            self.nav_buttons[action] = button
+            navigation.addWidget(button)
+        navigation.addStretch()
+        self.back_button = QPushButton("Startseite")
+        self.back_button.setIcon(icon("home", "#c3b48b", 20))
+        self.back_button.setToolTip("Zurück zur Startseite")
+        self.back_button.setAccessibleName("Zurück zur Startseite")
+        self.back_button.setAutoDefault(False)
         self.back_button.clicked.connect(self.reject)
-        layout.addWidget(self.back_button)
+        navigation.addWidget(self.back_button)
+        layout.addWidget(self.sidebar)
+        self.content = QScrollArea()
+        self.content.setObjectName("settingsContent")
+        self.content.setWidgetResizable(True)
+        self.content.setFrameShape(QFrame.Shape.NoFrame)
+        layout.addWidget(self.content, 1)
+        self.select_section("wifi")
+
+    def page_back_button(self):
+        return self.page.close_button if isinstance(self.page, UpdateDialog) else self.page.back
+
+    def update_navigation(self):
+        available = self.page_back_button().isEnabled()
+        for section, button in self.nav_buttons.items():
+            button.setChecked(section == self.current_section)
+            button.setEnabled(available)
+        self.back_button.setEnabled(available)
+
+    def eventFilter(self, watched, event):
+        if self.page:
+            if watched is self.page_back_button() and event.type() == QEvent.Type.EnabledChange:
+                self.update_navigation()
+            elif watched is self.page and event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+                self.reject()
+                return True
+        return super().eventFilter(watched, event)
+
+    def release_page(self):
+        if not self.page:
+            return True
+        if not self.page_back_button().isEnabled():
+            return False
+        # Use the existing dialog lifecycle to stop searches and pending timers.
+        self.page.reject()
+        if self.page.isVisible():
+            return False
+        self.page_back_button().removeEventFilter(self)
+        self.page.removeEventFilter(self)
+        self.content.takeWidget()
+        if self.page is self.update_page:
+            self.page.setParent(self)
+        else:
+            self.page.deleteLater()
+        self.page = None
+        return True
+
+    def select_section(self, section):
+        if section == self.current_section or not self.release_page():
+            self.update_navigation()
+            return
+        if section == "updates":
+            if self.update_page is None:
+                self.update_page = UpdateDialog(self, self.home.preview)
+            self.page = self.update_page
+        else:
+            self.page = {"wifi": WifiSheet, "bluetooth": BluetoothSheet,
+                         "sound": AudioSheet, "brightness": BrightnessSheet}[section](
+                self, self.home.device_client)
+        self.current_section = section
+        # Reuse the device controls inside the settings window instead of opening a modal.
+        self.page.setWindowFlags(Qt.WindowType.Widget)
+        self.page.layout().setContentsMargins(24, 24, 24, 24)
+        self.page.layout().setSpacing(12)
+        self.page_back_button().hide()
+        self.page_back_button().installEventFilter(self)
+        self.page.installEventFilter(self)
+        self.content.setWidget(self.page)
+        self.page.show()
+        self.content.verticalScrollBar().setValue(0)
+        self.update_navigation()
+
+    def reject(self):
+        if self.release_page():
+            super().reject()
+
+    def closeEvent(self, event):
+        if self.release_page():
+            super().closeEvent(event)
+        else:
+            event.ignore()
 
 
 class Home(QWidget):
@@ -432,12 +737,7 @@ class Home(QWidget):
         grid.setSpacing(24)
         grid.setContentsMargins(48, 36, 48, 36)
         specs = [
-            ("rocket", "Rocket Launch", "Airsoft-Spiel starten", "rocket", False),
-            ("music", "Spotify", "Der Sound für euren Tag", "spotify", False),
-            ("web", "Internet", "Browser öffnen", "web", False),
-            ("youtube", "YouTube", "Videos & Musik öffnen", "youtube", False),
-            ("folder", "Dateien", "Musik, Bilder & USB-Sticks", "files", False),
-            ("club", "Vereinswebseite", "Saar-Fighters AS e.V.", "club", False),
+            ("apps", "Apps", "Alle Anwendungen öffnen", "apps", False),
             ("settings", "Einstellungen", "WLAN, Bluetooth, Ton, Bildschirm & Updates", "settings", False),
         ]
         self.tiles = {}
@@ -445,10 +745,13 @@ class Home(QWidget):
             tile = Tile(symbol, title, subtitle, lambda checked=False, a=action: self.launch(a), accent)
             tile.setMinimumWidth(150)
             self.tiles[action] = tile
-            grid.addWidget(tile, i // 4, i % 4)
-        self.music_tile = MusicTile(lambda action: self.quick_action("media", action))
-        grid.addWidget(self.music_tile, 1, 3)
-        for column in range(4):
+            grid.addWidget(tile, 0, i)
+        self.music_dialog = None
+        self.artwork_loader = ArtworkLoader(self)
+        self.music_tile = MusicTile(lambda action: self.quick_action("media", action), self.show_music)
+        self.artwork_loader.changed.connect(self.music_tile.artwork.set_image)
+        grid.addWidget(self.music_tile, 0, 2)
+        for column in range(3):
             grid.setColumnStretch(column, 1)
         layout.addLayout(grid, 1)
         self.feedback = QLabel()
@@ -504,6 +807,9 @@ class Home(QWidget):
         if group == "media":
             self.media_state = data if not error else {}
             self.music_tile.update_state(data, error)
+            self.artwork_loader.load(self.media_state.get("art_url", ""))
+            if self.music_dialog:
+                self.music_dialog.update_state(data, error)
         else:
             output = data.get("control") or next((o for o in data.get("outputs", []) if o.get("default")), None)
             muted = bool(output and output.get("mute"))
@@ -513,21 +819,26 @@ class Home(QWidget):
             self.mute_button.setToolTip(error or ("Ton für alle ausgewählten Audioausgänge ein-/ausschalten."
                                                 if output else "Kein Audioausgang verfügbar."))
 
-    def quick_action(self, group, action="playpause"):
-        if group == "media" and action not in ("playpause", "previous", "next"):
+    def quick_action(self, group, action="playpause", **options):
+        if group == "media" and action not in ("playpause", "previous", "next", "seek", "volume", "shuffle", "repeat"):
             raise ValueError("Diese Medienaktion ist nicht verfügbar.")
         if self.quick_busy[group]:
             return
         if self.preview:
             self.set_feedback("Vorschau: Die Wiedergabe und der Ton bleiben unverändert.")
+            if self.music_dialog:
+                self.music_dialog.update_state(self.media_state)
             return
         self.quick_busy[group] = True
         if group == "media":
             self.music_tile.set_busy()
+            if self.music_dialog:
+                self.music_dialog.set_busy()
         else:
             self.mute_button.setEnabled(False)
         operation = f"media_{action}" if group == "media" else "audio_toggle"
         args = {"player": self.media_state.get("player")} if group == "media" else {}
+        args.update(options)
         def finished(data, error):
             self.quick_busy[group] = False
             self.set_feedback(error or "")
@@ -573,6 +884,9 @@ class Home(QWidget):
 
     def launch(self, action):
         self.last_action = action
+        if action == "apps":
+            self.show_apps()
+            return
         if action == "settings":
             self.show_settings()
             return
@@ -580,31 +894,70 @@ class Home(QWidget):
             self.open_device(action)
             return
         if self.preview:
-            title = "Vereinswebseite" if action == "club" else self.tiles[action].accessibleName()
+            title = next((app.title for app in SHORTCUTS if app.action == action), "Installation")
             self.set_feedback(f"Vorschau: „{title}“ gewählt. Es wird keine App gestartet.")
-            return
+            return False
         command = self.command_for(action)
+        return self.start_application(command, action)
+
+    def launch_application(self, application: Application):
+        if application.action:
+            return self.launch(application.action)
+        self.last_action = application.id
+        if self.preview:
+            self.set_feedback(f"Vorschau: „{application.title}“ gewählt. Es wird keine App gestartet.")
+            return False
+        if not application.desktop_file or not application.desktop_file.is_file():
+            self.set_feedback("Diese App ist nicht mehr vorhanden. Bitte die Apps neu laden.")
+            return False
+        if not shutil.which("kioclient"):
+            self.set_feedback("Die App-Startverwaltung fehlt. Bitte die Vereinsadministration kontaktieren.")
+            return False
+        # KDE handles Exec field codes, working directories, terminals and D-Bus.
+        return self.start_application(["kioclient", "exec", application.desktop_file.as_uri()], application.id)
+
+    def start_application(self, command, action):
         if not shutil.which(command[0]):
             self.set_feedback("Diese Anwendung fehlt. Bitte die Vereinsadministration kontaktieren.")
-            return
+            return False
+        if action == "rocket" and any(p.property("action") == "rocket" for p in self.processes):
+            return True
         process = QProcess(self)
-        if action == "rocket":
-            if any(p.property("action") == "rocket" for p in self.processes):
-                return
-            process.setProperty("action", action)
+        process.setProperty("action", action)
         # GUI applications must not inherit cloud-init's or a terminal's session env.
         self.processes.append(process)
         process.errorOccurred.connect(lambda _: self.set_feedback("Die Anwendung konnte nicht gestartet werden."))
         process.finished.connect(lambda code, status, p=process: self.app_finished(p, code, status))
         process.start(command[0], command[1:])
         self.set_feedback("")
+        return True
 
     def set_feedback(self, text):
         self.feedback.setText(text)
         self.feedback.setVisible(bool(text))
+        if self.music_dialog:
+            self.music_dialog.set_message(text)
+
+    def show_music(self):
+        if self.music_dialog:
+            self.music_dialog.raise_()
+            return
+        dialog = MusicPlayerDialog(self, icon)
+        self.music_dialog = dialog
+        def closed():
+            self.music_dialog = None
+            dialog.deleteLater()
+            self.music_tile.expand_button.setFocus()
+        dialog.finished.connect(closed)
+        dialog.open()
 
     def show_settings(self):
         dialog = SettingsDialog(self)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def show_apps(self):
+        dialog = AppsDialog(self)
         dialog.exec()
         dialog.deleteLater()
 
@@ -690,6 +1043,14 @@ QLabel#tileTitle { font-size: 24px; font-weight: 750; }
 QLabel#tileSubtitle { font-size: 12px; font-weight: 400; }
 QDialog, QMessageBox { background: #25281f; }
 QDialog#deviceSheet { background: #25281f; border: none; border-radius: 18px; }
+QFrame#settingsSidebar { background: #20231b; border-right: 1px solid #3a3e30; }
+QScrollArea#settingsContent { background: #25281f; }
+QDialog#settingsDialog QPushButton { padding: 10px 12px; }
+QPushButton#settingsNav { background: transparent; text-align: left; border-radius: 9px;
+                         border-left: 3px solid transparent; }
+QPushButton#settingsNav:hover, QPushButton#settingsNav:focus { background: #353b2b; }
+QPushButton#settingsNav:checked { background: #3c4430; color: #f3f1e6; border-left-color: #c3b48b; }
+QPushButton#settingsNav:disabled { color: #929382; }
 QFrame#statusChip { background: #303329; border: none; border-radius: 12px; }
 QListWidget { background: #1e211a; border: none; border-radius: 12px; padding: 6px; outline: none; }
 QListWidget::item { padding: 8px 14px; border-radius: 9px; color: #e8e6d9; }

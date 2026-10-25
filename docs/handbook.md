@@ -50,6 +50,20 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 
 ## Bedienung
 
+- Die Startseite bündelt alle Anwendungen in der Kachel „Apps“. Einstellungen
+  und Musikplayer bleiben direkt erreichbar. Die Apps-Übersicht enthält die
+  bisherigen Verknüpfungen sowie alle sichtbaren installierten Desktop-Apps,
+  einschließlich systemweiter und persönlicher Flatpak-Installationen.
+  Je nach Fensterbreite passen sechs oder acht Kacheln auf eine Seite.
+  „Vorherige Seite“ und „Nächste Seite“ blättern durch die gesamte Liste.
+  Die Suche findet Apps auf allen Seiten; „Neu laden“ erkennt neue oder
+  entfernte Installationen. Beim erneuten Öffnen wird die Liste ebenfalls neu
+  eingelesen. „Zurück zur Startseite“ oder Escape schließt die Übersicht.
+- Die App-Erkennung berücksichtigt deutsche Namen, Benutzerüberschreibungen,
+  ausgeblendete Einträge und die Desktop-Umgebung. Installierte Programme
+  starten über KDEs `kioclient` aus dem Paket `kde-cli-tools`, das zur
+  Plasma-Installation gehört. Die Oberfläche zerlegt keine fremden `Exec`-Zeilen.
+
 - Nach fünf Minuten ohne Eingabe startet auf dem Plasma-Wayland-Desktop eine
   bildschirmfüllende Airsoft-Diashow. Drei lokal gespeicherte Bilder wechseln
   alle zwölf Sekunden in zufälliger Reihenfolge, ohne direkte Wiederholung.
@@ -60,15 +74,33 @@ und den grafischen Installer verwenden: [Installation](installation.md).
   zählen reine Eingabepausen; bei Version 1 können Video-Apps den Start hemmen.
   In der Vorschau und unter X11 startet die Diashow nicht automatisch.
 
-- Der Musikplayer unten rechts neben den Einstellungen zeigt Titel, Interpret,
-  Player und Wiedergabestatus. Play/Pause sowie vorheriger und nächster Titel
+- Der Musikplayer rechts neben den Einstellungen zeigt Titel, Interpret,
+  Player und Wiedergabestatus. Das Cover oder Video-Vorschaubild füllt die gesamte
+  Kachel; Titel und Steuerung liegen auf einem dunklen Verlauf darüber. Ein Klick
+  auf das Bild oder den Aufklappknopf öffnet den großen Player. „Einklappen“ oder
+  Escape kehrt zurück, ohne die Wiedergabe zu unterbrechen.
+  Der große Player zeigt Cover, Zeitleiste, Lautstärke, Zufallswiedergabe,
+  Wiederholung und Lyrics. Play/Pause sowie vorheriger und nächster Titel
   steuern den angezeigten Medienplayer. Nicht unterstützte Aktionen sind deaktiviert.
   Laufende Wiedergabe hat Vorrang, bei Gleichstand Spotify. Ohne Player ist
   die Steuerung deaktiviert. Spotify und Browser mit MPRIS-Unterstützung werden erkannt.
+  Spulen setzt eine gemeldete Titellänge und eine gültige Titelkennung voraus;
+  ein Titelwechsel verwirft eine noch nicht abgesendete Positionsänderung.
+  Die Lautstärke im großen Player steuert den angezeigten Player.
+  Lyrics werden beim Öffnen zuerst aus den Metadaten gelesen, sonst über
+  [LRCLIB](https://lrclib.net/docs) anhand von Titel, Interpret, Album und Laufzeit
+  online gesucht. Diese Metadaten werden dabei an LRCLIB übermittelt. Zeitmarken
+  heben die aktuelle Zeile hervor; ein Klick auf eine Zeile springt dorthin,
+  sofern der Player Spulen unterstützt. Manuelles Scrollen pausiert das Folgen
+  für acht Sekunden; „Aktuelle Zeile“ setzt es sofort fort. Ohne Zeitmarken wird
+  der Text normal angezeigt. Ohne Treffer, Internet oder bei Instrumentalstücken
+  erscheint ein Hinweis. Bei einem Ladefehler kann erneut geladen werden.
+  Cover werden aus lokalen Dateien oder HTTP(S)-Adressen des Players geladen;
+  fehlt ein Bild, erscheint ein Musiksymbol. Die Vorschau fragt keine Online-Lyrics ab.
 - Stummschalten schaltet den aktuellen Audioausgang stumm; „Ton einschalten“
   hebt dies wieder auf. Der Status wird alle drei Sekunden aktualisiert.
 
-- Spotify: native Flatpak-App, wenn installiert; sonst Spotify im Browser.
+- Spotify in der Apps-Übersicht: installierte App, sonst Spotify im Browser.
 - Internet: Firefox.
 - Rocket Launch: startet die mitgelieferte Airsoft-Spielkonsole in Firefox.
   Der lokale Python-Server startet bei Bedarf auf `127.0.0.1:18741`, ohne
@@ -97,7 +129,9 @@ und den grafischen Installer verwenden: [Installation](installation.md).
   normale Größe. Die Fenster lassen sich weiterhin verkleinern.
   Die Einrichtung greift beim Anmelden, auch nach Updates bestehender Rechner.
 - Einstellungen: zentrale Kachel für WLAN, Bluetooth, Lautstärke, Bildschirm und Updates.
-  Die Auswahl öffnet die eigenen, einheitlich gestalteten Dialoge.
+  Links bleibt die Seitenleiste sichtbar, rechts öffnet sich der gewählte Bereich
+  direkt im selben Fenster. „Startseite“ führt zurück. Während Änderungen
+  übernommen werden oder ein Update läuft, ist der Bereichswechsel gesperrt.
   WLAN auswählen und Passwort eingeben; Bluetooth suchen, koppeln und verbinden;
   Unter „Lautstärke & Boxen“ einen oder mehrere Audioausgänge ankreuzen und
   „Auswahl übernehmen“ drücken. Laufende Wiedergabe und neue Wiedergabe laufen
