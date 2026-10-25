@@ -15,7 +15,7 @@ PROJECT = Path(__file__).resolve().parents[1]
 
 
 def run(*args, check=True, **kwargs):
-    return subprocess.run(args, check=check, capture_output=True, text=True, timeout=20, **kwargs)
+    return subprocess.run(args, check=check, capture_output=True, text=True, timeout=60, **kwargs)
 
 
 def main():
@@ -53,7 +53,7 @@ def main():
         sshd = shutil.which("sshd")
         Path("/run/sshd").mkdir(exist_ok=True)
         try:
-            run("useradd", "--create-home", "--shell", "/bin/sh", username)
+            run("useradd", "--no-log-init", "--create-home", "--shell", "/bin/sh", username)
             created = True
             run("chpasswd", input=username + ":" + secrets.token_urlsafe(32) + "\n")
             def command(args):
