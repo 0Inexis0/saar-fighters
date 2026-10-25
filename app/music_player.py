@@ -157,7 +157,7 @@ class MusicPlayerDialog(QDialog):
         self.setWindowTitle("Musikplayer · Saar-Fighters")
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setModal(True)
-        self.resize(min(home.width(), 1160), min(home.height(), 760))
+        self.resize(home.size())
         self.setMinimumSize(760, 500)
         self.setStyleSheet("""
             QDialog#expandedMusicPlayer { background: #22261f; }

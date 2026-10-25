@@ -81,6 +81,8 @@ class MusicUiTests(unittest.TestCase):
         self.app.processEvents()
         dialog = self.home.music_dialog
         self.assertTrue(dialog.isVisible())
+        self.assertTrue(dialog.isFullScreen())
+        self.assertEqual(dialog.geometry(), dialog.screen().geometry())
         QTest.keyClick(dialog, Qt.Key.Key_Escape)
         self.assertIsNone(self.home.music_dialog)
         self.assertTrue(self.home.isVisible())
@@ -99,11 +101,29 @@ class MusicUiTests(unittest.TestCase):
         self.home.music_tile.buttons["playpause"].click()
         self.assertIsNone(self.home.music_dialog)
 
+    def test_small_player_has_large_controls_even_on_small_screen(self):
+        self.home.resize(800, 540)
+        self.app.processEvents()
+        tile = self.home.music_tile
+        self.assertGreaterEqual(tile.expand_button.width(), 44)
+        for name, button in tile.buttons.items():
+            self.assertGreaterEqual(button.width(), 64 if name == "playpause" else 56)
+            self.assertGreaterEqual(button.height(), 56)
+            self.assertGreaterEqual(button.iconSize().width(), 32)
+            self.assertTrue(tile.rect().contains(button.geometry()))
+        self.assertLess(tile.buttons["previous"].geometry().right(), tile.buttons["playpause"].geometry().left())
+        self.assertLess(tile.buttons["playpause"].geometry().right(), tile.buttons["next"].geometry().left())
+
     def test_dialog_fits_laptop_sizes_and_long_metadata(self):
         for width, height in ((800, 540), (1024, 600), (1366, 768)):
             self.home.resize(width, height)
             self.home.quick_status("media", dict(STATE, title="Sehr langer Titel " * 30, artist="Interpret " * 40), None)
             dialog = self.open()
+            self.assertTrue(dialog.isFullScreen())
+            # Exercise compact layouts independently of the test display's size.
+            dialog.showNormal()
+            dialog.resize(width, height)
+            self.app.processEvents()
             self.assertLessEqual(dialog.width(), width)
             self.assertLessEqual(dialog.height(), height)
             for widget in (*dialog.buttons.values(), dialog.volume, dialog.position, dialog.close_button, dialog.lyrics):

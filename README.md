@@ -16,7 +16,7 @@
 
 ![Saar-Fighters Desktop](docs/desktop.png)
 
-Die Kachel „Apps“ öffnet alle Anwendungen: Spotify, Firefox, Dateien, Airsoft Rocket Launch und weitere installierte Programme. Suche und mehrere Seiten halten die Übersicht einfach. Die Spielkonsole startet lokal und offline. WLAN, Bluetooth, Lautstärke, Bildschirmhelligkeit und Updates gemeinsam in der Kachel „Einstellungen“. Matte Olive-Optik, große Buttons und gemeinsame Updates für System und Oberfläche.
+Die Kachel „Apps“ zeigt Rocket Launch, Spotify, Internet, YouTube, Dateien und Vereinswebseite direkt auf der gesamten Dashboard-Fläche. Suche und Seitenwechsel halten die Übersicht einfach. Die Spielkonsole startet lokal und offline. WLAN, Bluetooth, Lautstärke, Bildschirmhelligkeit und Updates gemeinsam in der Kachel „Einstellungen“. Matte Olive-Optik, große Buttons und gemeinsame Updates für System und Oberfläche.
 
 ## Loslegen
 
