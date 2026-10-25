@@ -89,6 +89,15 @@ class BackendTests(unittest.IsolatedAsyncioTestCase):
         await self.backend.perform("audio_toggle", {})
         self.backend.pactl.assert_awaited_once_with("set-sink-mute", "@DEFAULT_SINK@", "toggle")
 
+    async def test_extended_media_controls_preserve_track_and_values(self):
+        player = "org.mpris.MediaPlayer2.spotify"
+        with patch("backend.media_request", new_callable=AsyncMock) as request:
+            await self.backend.perform("media_seek", {"player": player, "position": 41.5, "track_id": "/track/one"})
+            request.assert_awaited_with(player, "seek", position=41.5, track_id="/track/one")
+            for action, value in (("volume", 50), ("shuffle", True), ("repeat", "Track")):
+                await self.backend.perform("media_" + action, {"player": player, "value": value})
+                request.assert_awaited_with(player, action, value=value)
+
     async def test_absent_physical_power_is_unknown(self):
         self.backend.call = AsyncMock(return_value=[[]])
         self.assertEqual(await self.backend.power(), {"percentage": None, "state": 0, "plugged": None})

@@ -8,7 +8,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
-from main import Home, SettingsDialog, STYLE, UpdateDialog
+from main import AppsDialog, Home, SettingsDialog, STYLE, UpdateDialog
+from devices import AudioSheet, BluetoothSheet, BrightnessSheet, WifiSheet
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -32,14 +33,15 @@ class HomeTests(unittest.TestCase):
         self.app.processEvents()
 
     def test_all_tiles_are_clickable_without_launching_in_preview(self):
-        with patch.object(QProcess, "start") as start, patch.object(self.home, "show_settings") as settings:
+        with patch.object(QProcess, "start") as start, patch.object(self.home, "show_settings") as settings, \
+                patch.object(self.home, "show_apps") as apps:
             for action, tile in self.home.tiles.items():
                 QTest.mouseClick(tile, Qt.MouseButton.LeftButton)
                 self.assertEqual(self.home.last_action, action)
                 if action == "settings":
                     settings.assert_called_once_with()
-                else:
-                    self.assertIn("Vorschau", self.home.feedback.text())
+                elif action == "apps":
+                    apps.assert_called_once_with()
             start.assert_not_called()
 
     def test_controls_fit_small_laptop(self):
@@ -59,33 +61,130 @@ class HomeTests(unittest.TestCase):
                 self.assertTrue(self.home.music_tile.rect().contains(button.geometry()))
 
     def test_settings_navigation_and_return(self):
-        self.assertEqual(set(self.home.tiles), {"rocket", "spotify", "web", "youtube", "files", "club", "settings"})
+        self.assertEqual(set(self.home.tiles), {"apps", "settings"})
         dialog = SettingsDialog(self.home)
         dialog.show()
         self.app.processEvents()
-        with patch.object(self.home, "open_device") as device, patch.object(self.home, "show_updates") as updates:
-            for action in ("wifi", "bluetooth", "sound", "brightness"):
-                QTest.mouseClick(dialog.tiles[action], Qt.MouseButton.LeftButton)
-                device.assert_called_with(action, dialog)
-            QTest.mouseClick(dialog.tiles["updates"], Qt.MouseButton.LeftButton)
-            updates.assert_called_once_with(dialog)
+        with patch.object(QProcess, "start") as start:
+            for action, page_type in (("wifi", WifiSheet), ("bluetooth", BluetoothSheet),
+                                      ("sound", AudioSheet), ("brightness", BrightnessSheet),
+                                      ("updates", UpdateDialog)):
+                QTest.mouseClick(dialog.nav_buttons[action], Qt.MouseButton.LeftButton)
+                self.app.processEvents()
+                self.assertIsInstance(dialog.page, page_type)
+                self.assertFalse(dialog.page.isWindow())
+                self.assertTrue(dialog.page.isVisible())
+                self.assertTrue(dialog.sidebar.isVisible())
+                self.assertTrue(dialog.nav_buttons[action].isChecked())
+                self.assertEqual(sum(b.isChecked() for b in dialog.nav_buttons.values()), 1)
+            QTest.mouseClick(dialog.page.start, Qt.MouseButton.LeftButton)
+            self.assertIn("Vorschau", dialog.page.state.text())
+            start.assert_not_called()
         QTest.mouseClick(dialog.back_button, Qt.MouseButton.LeftButton)
         self.assertFalse(dialog.isVisible())
         self.assertTrue(self.home.isVisible())
         dialog.deleteLater()
 
     def test_settings_fit_small_screens(self):
-        for size in ((800, 540), (1024, 600)):
+        for size in ((800, 540), (1024, 600), (1366, 768)):
             self.home.resize(*size)
             dialog = SettingsDialog(self.home)
             dialog.show()
             self.app.processEvents()
             self.assertLessEqual(dialog.width(), size[0])
             self.assertLessEqual(dialog.height(), size[1])
-            for tile in dialog.tiles.values():
-                self.assertTrue(dialog.rect().contains(tile.geometry()))
+            for button in (*dialog.nav_buttons.values(), dialog.back_button):
+                self.assertTrue(dialog.sidebar.rect().contains(button.geometry()))
+            for action in dialog.nav_buttons:
+                QTest.mouseClick(dialog.nav_buttons[action], Qt.MouseButton.LeftButton)
+                self.app.processEvents()
+                self.assertEqual(dialog.content.horizontalScrollBar().maximum(), 0)
+                self.assertLessEqual(dialog.width(), size[0])
+                self.assertLessEqual(dialog.height(), size[1])
+                self.assertTrue(dialog.rect().contains(dialog.content.geometry()))
             dialog.close()
             dialog.deleteLater()
+
+    def test_settings_wait_for_volume_and_brightness_changes(self):
+        dialog = SettingsDialog(self.home)
+        dialog.show()
+        self.app.processEvents()
+        for section in ("sound", "brightness"):
+            QTest.mouseClick(dialog.nav_buttons[section], Qt.MouseButton.LeftButton)
+            self.app.processEvents()
+            page = dialog.page
+            QTest.keyClick(page.slider, Qt.Key.Key_Right)
+            self.assertFalse(dialog.back_button.isEnabled())
+            self.assertTrue(all(not button.isEnabled() for button in dialog.nav_buttons.values()))
+            dialog.select_section("updates")
+            dialog.reject()
+            self.assertIs(dialog.page, page)
+            self.assertTrue(dialog.isVisible())
+            QTest.qWait(450)
+            self.assertTrue(dialog.back_button.isEnabled())
+            self.assertTrue(all(button.isEnabled() for button in dialog.nav_buttons.values()))
+        dialog.reject()
+        dialog.deleteLater()
+
+    def test_settings_escape_closes_the_whole_window(self):
+        dialog = SettingsDialog(self.home)
+        dialog.show()
+        self.app.processEvents()
+        page = dialog.page
+        QTest.keyClick(page.scan, Qt.Key.Key_Escape)
+        self.assertFalse(dialog.isVisible())
+        self.assertTrue(page.closed)
+        self.assertTrue(self.home.isVisible())
+        dialog.deleteLater()
+
+    def test_settings_leave_bluetooth_stops_search_and_ignores_late_replies(self):
+        dialog = SettingsDialog(self.home)
+        dialog.show()
+        self.app.processEvents()
+        QTest.mouseClick(dialog.nav_buttons["bluetooth"], Qt.MouseButton.LeftButton)
+        self.app.processEvents()
+        page = dialog.page
+        QTest.mouseClick(page.scan, Qt.MouseButton.LeftButton)
+        self.app.processEvents()
+        self.assertTrue(page.searching)
+        callbacks = []
+        with patch.object(page.client, "request", side_effect=lambda op, args=None, callback=None:
+                          callbacks.append(callback)) as request:
+            page.load(quiet=True)
+            QTest.mouseClick(dialog.nav_buttons["updates"], Qt.MouseButton.LeftButton)
+            request.assert_any_call("bt_scan", {"enabled": False}, None)
+        self.assertTrue(page.closed)
+        self.assertFalse(page.timer.isActive())
+        self.assertFalse(page.search_timer.isActive())
+        with patch.object(page, "loaded") as loaded:
+            callbacks[0]({}, None)
+            loaded.assert_not_called()
+        dialog.reject()
+        dialog.deleteLater()
+
+    def test_settings_keep_update_result_and_block_navigation_while_running(self):
+        dialog = SettingsDialog(self.home)
+        dialog.show()
+        self.app.processEvents()
+        QTest.mouseClick(dialog.nav_buttons["updates"], Qt.MouseButton.LeftButton)
+        update = dialog.page
+        with patch.object(update.process, "start"):
+            update.begin(preview=False)
+        self.assertFalse(dialog.back_button.isEnabled())
+        dialog.select_section("wifi")
+        dialog.close()
+        self.assertIs(dialog.page, update)
+        self.assertTrue(dialog.isVisible())
+        update.output.setPlainText("Testausgabe")
+        update.finished_update(0, QProcess.ExitStatus.NormalExit)
+        QTest.mouseClick(dialog.nav_buttons["wifi"], Qt.MouseButton.LeftButton)
+        self.app.processEvents()
+        QTest.mouseClick(dialog.nav_buttons["updates"], Qt.MouseButton.LeftButton)
+        self.assertIs(dialog.page, update)
+        self.assertEqual(update.output.toPlainText(), "Testausgabe")
+        self.assertIn("erfolgreich", update.state.text())
+        dialog.reject()
+        dialog.deleteLater()
 
     def test_quick_controls_follow_real_status_and_errors(self):
         self.home.quick_status("media", {"available": True, "playing": True,
@@ -210,13 +309,16 @@ class HomeTests(unittest.TestCase):
 
     def test_rocket_tile_launches_local_helper_without_admin_rights(self):
         self.home.preview = False
+        dialog = AppsDialog(self.home)
+        dialog.search.setText("Rocket Launch")
         with patch("main.shutil.which", return_value="python"), patch.object(QProcess, "start") as start:
-            QTest.mouseClick(self.home.tiles["rocket"], Qt.MouseButton.LeftButton)
+            QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
             self.assertEqual(start.call_args.args, (sys.executable,
                 [str(Path(__file__).resolve().parents[1] / "app/rocket.py")]))
-            QTest.mouseClick(self.home.tiles["rocket"], Qt.MouseButton.LeftButton)
+            QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
             self.assertEqual(start.call_count, 1)
         self.home.preview = True
+        dialog.deleteLater()
 
 
 if __name__ == "__main__":

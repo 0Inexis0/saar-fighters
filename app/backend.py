@@ -363,11 +363,13 @@ class Backend:
                 if not isinstance(target, str) or not target:
                     raise ValueError("Bitte einen Bildschirm auswählen.")
                 return await brightness_request(target, args.get("value"))
-            if operation in ("media_playpause", "media_previous", "media_next"):
+            if operation in ("media_playpause", "media_previous", "media_next", "media_seek",
+                             "media_volume", "media_shuffle", "media_repeat"):
                 target = args.get("player")
                 if not isinstance(target, str) or not target.startswith("org.mpris.MediaPlayer2."):
                     raise ValueError("Bitte zuerst Musik oder ein Video öffnen.")
-                return await media_request(target, operation.removeprefix("media_"))
+                options = {key: args[key] for key in ("position", "track_id", "value") if key in args}
+                return await media_request(target, operation.removeprefix("media_"), **options)
             if operation == "audio_toggle":
                 await self.pactl("set-sink-mute", "@DEFAULT_SINK@", "toggle")
                 return {}
