@@ -28,6 +28,8 @@ INTEGRATIONS = (
     ("system/desktoptheme/saar-olive", "usr/share/plasma/desktoptheme/saar-olive", None),
 )
 REQUIRED = (
+    "system/configure_ssh.py", "system/diagnose_firefox.py",
+    "system/ssh/sshd_config", "system/ssh/saar-sshd.service", "system/ssh/support_ed25519.pub",
     "app/rocket.py", "app/rocket-launch/index.html", "app/rocket-launch/config.json",
     "app/rocket-launch/js/main.js", "app/rocket-launch/js/missile.js",
     "app/rocket-launch/js/ui.js", "app/rocket-launch/js/map.js", "app/rocket-launch/js/audio.js",

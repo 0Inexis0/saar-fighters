@@ -1,0 +1,26 @@
+# Dedicated club maintenance endpoint. The normal sshd configuration is untouched.
+Port 2222
+AddressFamily inet
+ListenAddress 0.0.0.0
+HostKey /etc/saar-fighters/ssh/host_ed25519
+PidFile /run/saar-sshd.pid
+AuthorizedKeysFile /etc/saar-fighters/ssh/authorized_keys
+StrictModes yes
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+PermitRootLogin no
+UsePAM yes
+AllowUsers wartung@10.0.0.0/8 wartung@172.16.0.0/12 wartung@192.168.0.0/16 wartung@127.0.0.1
+DisableForwarding yes
+X11Forwarding no
+PermitTunnel no
+PermitUserEnvironment no
+PermitUserRC no
+UseDNS no
+LoginGraceTime 30
+MaxAuthTries 3
+MaxStartups 3:30:10
+Subsystem sftp internal-sftp
