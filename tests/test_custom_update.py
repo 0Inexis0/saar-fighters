@@ -37,6 +37,8 @@ class CustomUpdateTests(unittest.TestCase):
         update.install_checkout(self.checkout, "a" * 40, self.root)
         self.assertEqual((self.state / "previous/old-version").read_text(), "working version")
         self.assertTrue((self.project / "app/main.py").is_file())
+        self.assertTrue((self.project / "app/rocket.py").is_file())
+        self.assertTrue((self.project / "app/rocket-launch/index.html").is_file())
         self.assertIn("saar-update-custom.py", self.helper.read_text())
         self.assertEqual(self.helper.stat().st_mode & 0o777, 0o755)
         self.assertFalse((self.root / "usr/local/libexec/saar-install").exists())
@@ -50,6 +52,11 @@ class CustomUpdateTests(unittest.TestCase):
         self.assertTrue(update.install_checkout(self.checkout, "a" * 40, self.root))
         self.assertFalse(update.install_checkout(self.checkout, "a" * 40, self.root))
         self.assertEqual((self.state / "previous/old-version").read_text(), "working version")
+
+    def test_missing_rocket_asset_rejects_incomplete_update(self):
+        (self.checkout / "app/rocket-launch/js/missile.js").unlink()
+        with self.assertRaisesRegex(RuntimeError, "missile.js"):
+            update.validate_checkout(self.checkout)
 
     def test_mid_install_failure_restores_all_old_files(self):
         rename = Path.rename

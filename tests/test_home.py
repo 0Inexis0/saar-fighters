@@ -49,11 +49,11 @@ class HomeTests(unittest.TestCase):
             self.assertEqual((self.home.width(), self.home.height()), size)
             for tile in self.home.tiles.values():
                 self.assertTrue(self.home.rect().contains(tile.geometry()))
-                self.assertGreaterEqual(tile.width(), 170)
+                self.assertGreaterEqual(tile.width(), 150)
                 self.assertGreaterEqual(tile.height(), 104)
 
     def test_settings_navigation_and_return(self):
-        self.assertEqual(set(self.home.tiles), {"spotify", "web", "youtube", "files", "club", "settings"})
+        self.assertEqual(set(self.home.tiles), {"rocket", "spotify", "web", "youtube", "files", "club", "settings"})
         dialog = SettingsDialog(self.home)
         dialog.show()
         self.app.processEvents()
@@ -147,6 +147,16 @@ class HomeTests(unittest.TestCase):
         with patch("main.shutil.which", return_value=None):
             self.home.launch("web")
         self.assertIn("fehlt", self.home.feedback.text())
+        self.home.preview = True
+
+    def test_rocket_tile_launches_local_helper_without_admin_rights(self):
+        self.home.preview = False
+        with patch("main.shutil.which", return_value="python"), patch.object(QProcess, "start") as start:
+            QTest.mouseClick(self.home.tiles["rocket"], Qt.MouseButton.LeftButton)
+            self.assertEqual(start.call_args.args, (sys.executable,
+                [str(Path(__file__).resolve().parents[1] / "app/rocket.py")]))
+            QTest.mouseClick(self.home.tiles["rocket"], Qt.MouseButton.LeftButton)
+            self.assertEqual(start.call_count, 1)
         self.home.preview = True
 
 

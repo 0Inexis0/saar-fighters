@@ -1,0 +1,8 @@
+{
+  "startCode": "8421",
+  "disarmCode": "0000",
+  "timerSeconds": 20,
+  "flightTimeSeconds": 50,
+  "allowDisarmDuringCountdown": true,
+  "lockoutAfterFailedAttempts": true
+}

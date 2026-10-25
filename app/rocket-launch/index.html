@@ -1,0 +1,235 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Airsoft Rocket Launch | Saar-Fighters</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/map.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="system-header">
+      <div class="system-info">
+        <span class="system-id">SYSTEM: ICBM-7A</span>
+        <span class="facility-id">FACILITY: SILO-ALPHA-7</span>
+        <span class="timestamp" id="systemTime">--:--:--</span>
+      </div>
+      <div class="security-level">
+        <button id="fsBtn" class="btn muted">Vollbild</button>
+        <button id="hiddenAdminBtn" class="btn muted" disabled>Spielleitung</button>
+        <span class="security-badge" id="securityLevel" aria-hidden="true">CLASSIFIED</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel" id="left">
+        <div class="console-header">
+          <h1>AIRSOFT ROCKET LAUNCH</h1>
+          <div class="sub">Startcode eingeben und starten. Zum Entschärfen den Entschärfungscode eingeben. Die Entschärfung im Countdown dauert 10 Sekunden.</div>
+          <p id="gameStatus" role="status">Einstellungen werden geladen …</p>
+        </div>
+
+        <div class="system-status">
+          <div class="status-grid">
+            <div class="status-item">
+              <span class="status-label">FUEL</span>
+              <div class="status-bar">
+                <div class="status-fill" id="fuelLevel" style="width: 100%"></div>
+              </div>
+              <span class="status-value" id="fuelValue">100%</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">GUIDANCE</span>
+              <div class="status-bar">
+                <div class="status-fill" id="guidanceLevel" style="width: 100%"></div>
+              </div>
+              <span class="status-value" id="guidanceValue">ONLINE</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">COMMS</span>
+              <div class="status-bar">
+                <div class="status-fill" id="commsLevel" style="width: 100%"></div>
+              </div>
+              <span class="status-value" id="commsValue">ACTIVE</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">POWER</span>
+              <div class="status-bar">
+                <div class="status-fill" id="powerLevel" style="width: 100%"></div>
+              </div>
+              <span class="status-value" id="powerValue">100%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lamps">
+          <div class="lamp" id="lampReady" style="--c:var(--muted)"><div class="dot"></div><span>READY</span></div>
+          <div class="lamp" id="lampArmed" style="--c:var(--warn)"><div class="dot"></div><span>ARMED</span></div>
+          <div class="lamp" id="lampSafe" style="--c:var(--ok)"><div class="dot"></div><span>SAFE</span></div>
+          <div class="badge" id="timerBadge" style="display:none">⏱ <b id="pillTime">00:00</b></div>
+        </div>
+
+        <div class="lcd-container">
+          <div class="lcd-frame">
+            <div class="lcd" id="display">--:--</div>
+            <div class="lcd-overlay">
+              <div class="scan-line"></div>
+            </div>
+          </div>
+          <div class="lcd-impact" id="impactEstimate"></div>
+        </div>
+
+        <div class="row">
+          <input id="codeInput" class="code" type="password" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="Code eingeben" aria-label="Code" disabled />
+        </div>
+
+        <div class="kbd" aria-label="Ziffernblock">
+          <button class="btn" data-key="1">1</button>
+          <button class="btn" data-key="2">2</button>
+          <button class="btn" data-key="3">3</button>
+          <button class="btn" data-key="4">4</button>
+          <button class="btn" data-key="5">5</button>
+          <button class="btn" data-key="6">6</button>
+          <button class="btn" data-key="7">7</button>
+          <button class="btn" data-key="8">8</button>
+          <button class="btn" data-key="9">9</button>
+          <button class="btn muted" data-key="back">⌫</button>
+          <button class="btn" data-key="0">0</button>
+          <button class="btn warn" data-key="clear">CLR</button>
+        </div>
+
+        <div class="action-buttons section">
+          <button id="armBtn" class="btn ok large-btn" disabled>
+            <div class="btn-content">
+              <span class="btn-icon"> </span>
+              <span class="btn-text">STARTEN</span>
+            </div>
+          </button>
+          <button id="disarmBtn" class="btn danger large-btn" disabled>
+            <div class="btn-content">
+              <span class="btn-icon"> </span>
+              <span class="btn-text">ENTSCHÄRFEN</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel" id="right">
+        <div class="monitoring-panel">
+          <h2>SYSTEM MONITORING</h2>
+          <div class="monitor-grid">
+            <div class="monitor-item">
+              <span class="monitor-label">TARGET ACQUISITION</span>
+              <div class="monitor-value" id="targetStatus">STANDBY</div>
+            </div>
+            <div class="monitor-item">
+              <span class="monitor-label">WEATHER CONDITIONS</span>
+              <div class="monitor-value" id="weatherStatus">CLEAR</div>
+            </div>
+            <div class="monitor-item">
+              <span class="monitor-label">SATELLITE LINK</span>
+              <div class="monitor-value" id="satelliteStatus">CONNECTED</div>
+            </div>
+            <div class="monitor-item">
+              <span class="monitor-label">RADAR STATUS</span>
+              <div class="monitor-value" id="radarStatus">ACTIVE</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="world-map-panel">
+          <h2>GLOBAL TARGETING</h2>
+          <div class="map-container">
+            <div class="world-map" id="worldMap">
+              <div class="map-grid">
+                <div class="grid-line horizontal" style="top: 20%"></div>
+                <div class="grid-line horizontal" style="top: 40%"></div>
+                <div class="grid-line horizontal" style="top: 60%"></div>
+                <div class="grid-line horizontal" style="top: 80%"></div>
+                <div class="grid-line vertical" style="left: 20%"></div>
+                <div class="grid-line vertical" style="left: 40%"></div>
+                <div class="grid-line vertical" style="left: 60%"></div>
+                <div class="grid-line vertical" style="left: 80%"></div>
+              </div>
+              <svg class="map-overlay" id="mapOverlay" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet"></svg>
+              <div class="target-marker" id="targetMarker" style="display: none">
+                <div class="marker-dot"></div>
+                <div class="marker-pulse"></div>
+                <div class="marker-crosshair"></div>
+              </div>
+              <div class="launch-site" id="launchSite">
+                <div class="site-dot"></div>
+                <div class="site-label">BASE // USA</div>
+              </div>
+              <div class="trajectory-line" id="trajectoryLine" style="display: none"></div>
+              <div class="target-destruction" id="targetDestruction" style="display: none">
+                <div class="explosion-ring"></div>
+                <div class="explosion-dot"></div>
+                <div class="explosion-particles"></div>
+              </div>
+            </div>
+            <div class="map-info">
+              <div class="map-coords">
+                <span class="coord-label">TARGET:</span>
+                <span class="coord-value" id="targetCoords">--°N, --°E</span>
+              </div>
+              <div class="map-coords">
+                <span class="coord-label">RANGE:</span>
+                <span class="coord-value" id="targetRange">-- km</span>
+              </div>
+              <div class="map-coords">
+                <span class="coord-label">ETA:</span>
+                <span class="coord-value" id="targetETA">--:--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-access" id="adminAccess" style="display:none">
+          <h2 style="margin:2px 0 10px">SPIELLEITUNG</h2>
+          <p class="sub">Einstellungen vor der Runde speichern. Während einer laufenden Runde sind Änderungen gesperrt.</p>
+          <p id="configFeedback" role="status"></p>
+          <div class="row" style="margin-top:10px;gap:12px;align-items:flex-end;flex-wrap:wrap">
+            <label>Startcode<br><input id="cfgStart" class="code" type="password" inputmode="numeric" maxlength="12" autocomplete="off" style="width:180px"></label>
+            <label>Entschärfungscode<br><input id="cfgDisarm" class="code" type="password" inputmode="numeric" maxlength="12" autocomplete="off" style="width:180px"></label>
+            <label>Timer (Sekunden)<br><input id="cfgTimer" class="code" type="number" min="1" max="3600" style="width:180px"></label>
+            <label>Flugzeit (Sekunden)<br><input id="cfgFlight" class="code" type="number" min="1" max="3600" style="width:180px"></label>
+            <button id="applyCfg" class="btn ok">Speichern</button>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <label class="badge"><input type="checkbox" id="cfgAllowDisarm" checked> Entschärfen während Countdown erlauben</label>
+            <label class="badge"><input type="checkbox" id="cfgAllowFlight" checked> Entschärfen während Flug erlauben</label>
+            <label class="badge"><input type="checkbox" id="cfgLockout" checked> Sperre nach Fehlversuchen</label>
+          </div>
+          <div class="row" style="margin-top:12px;gap:8px">
+            <button id="resetBtn" class="btn muted">NEUE RUNDE / ABBRECHEN</button>
+            <button id="logoutAdmin" class="btn muted">ABMELDEN</button>
+          </div>
+        </div>
+
+        <div class="event-log-section">
+          <div class="log-header">
+            <span class="note">MISSION LOG</span>
+            <div class="log-controls">
+              <button class="log-btn" id="clearLog">CLEAR</button>
+              <button class="log-btn" id="exportLog">EXPORT</button>
+            </div>
+          </div>
+          <div id="log" class="log" aria-live="polite"></div>
+        </div>
+
+        <div id="loadingBar" class="loading-bar" style="display:none">
+          <div class="loading-progress"></div>
+          <div class="loading-text">SYSTEM WIRD ENTSCHÄRFT...</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules organized by functionality -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

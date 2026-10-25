@@ -75,3 +75,11 @@ class SlideshowTests(unittest.TestCase):
         view.slides = [{"file": "missing.jpg", "credit": ""}]
         view.start()
         self.assertFalse(view.isVisible())
+
+    def test_running_rocket_round_is_not_covered(self):
+        with patch("slideshow.game_active", return_value=True):
+            self.controller.handle_event("idled")
+            self.assertFalse(self.controller.view.isVisible())
+        with patch("slideshow.game_active", return_value=False):
+            self.controller.handle_event("idled")
+            self.assertTrue(self.controller.view.isVisible())

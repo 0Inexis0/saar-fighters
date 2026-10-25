@@ -28,6 +28,13 @@ INTEGRATIONS = (
     ("system/desktoptheme/saar-olive", "usr/share/plasma/desktoptheme/saar-olive", None),
 )
 REQUIRED = (
+    "app/rocket.py", "app/rocket-launch/index.html", "app/rocket-launch/config.json",
+    "app/rocket-launch/js/main.js", "app/rocket-launch/js/missile.js",
+    "app/rocket-launch/js/ui.js", "app/rocket-launch/js/map.js", "app/rocket-launch/js/audio.js",
+    "app/rocket-launch/css/base.css", "app/rocket-launch/css/layout.css", "app/rocket-launch/css/map.css",
+    "app/rocket-launch/assets/world-map.svg",
+    "app/rocket-launch/assets/Explosion - Sound Effect.mp3",
+    "app/rocket-launch/assets/Tactical Nuke Test Countdown and Explosion Sound Effect.mp3",
     "system/configure_display.py",
     "app/slideshow.py", "app/idle_watch.py", "app/assets/slideshow/credits.json",
     "app/assets/slideshow/airsoft-shooter.jpg", "app/assets/slideshow/airsoft-squad.jpg",

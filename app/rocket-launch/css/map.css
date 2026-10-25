@@ -1,0 +1,546 @@
+.world-map-panel {
+  background: linear-gradient(135deg, rgba(0,0,0,0.6), rgba(0,20,40,0.4));
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.world-map-panel h2 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: var(--secondary);
+  text-shadow: 0 0 6px var(--secondary);
+}
+
+.map-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.world-map {
+  position: relative;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: clamp(220px, 32vw, 320px);
+  aspect-ratio: 1000/520;
+  background-image:
+    linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,20,40,0.6)),
+    radial-gradient(circle at 30% 30%, rgba(0,255,136,0.12) 0%, transparent 55%),
+    url('../assets/world-map.svg');
+  background-size: 100% 100%, 140% 140%, contain;
+  background-position: center, 30% 35%, center;
+  background-repeat: no-repeat;
+  background-color: #021722;
+  border: 1px solid var(--grid);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.map-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.grid-line {
+  position: absolute;
+  background: rgba(0,255,136,0.2);
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.grid-line.horizontal {
+  width: 100%;
+  height: 1px;
+}
+
+.grid-line.vertical {
+  height: 100%;
+  width: 1px;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.map-overlay .trajectory-arc {
+  fill: none;
+  stroke: rgba(29,242,255,0.45);
+  stroke-width: 1.6px;
+  stroke-dasharray: 6 6;
+  filter: drop-shadow(0 0 6px rgba(29,242,255,0.3));
+  opacity: 0.7;
+  transition: stroke 0.3s ease, stroke-width 0.3s ease, opacity 0.3s ease;
+}
+
+.map-overlay .trajectory-arc.active {
+  stroke: var(--danger);
+  stroke-width: 2.4px;
+  stroke-dasharray: 3 6;
+  opacity: 0.95;
+}
+
+.map-overlay .base-marker .base-glow {
+  fill: rgba(0,255,136,0.2);
+}
+
+.map-overlay .base-marker .base-dot {
+  fill: var(--ok);
+  stroke: rgba(0,255,136,0.55);
+  stroke-width: 2;
+}
+
+.map-overlay .base-marker .base-label {
+  fill: var(--secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-shadow: 0 0 6px rgba(0,0,0,0.7);
+}
+
+.map-overlay .target-node .target-glow {
+  fill: rgba(255,64,64,0.16);
+  transition: fill 0.3s ease;
+}
+
+.map-overlay .target-node .target-dot {
+  fill: var(--danger);
+  filter: drop-shadow(0 0 6px rgba(255,0,0,0.55));
+}
+
+.map-overlay .target-node .target-glow,
+.map-overlay .target-node .target-dot {
+  display: none;
+}
+
+.map-overlay .target-node .target-label {
+  fill: var(--secondary);
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-shadow: 0 0 6px rgba(0,0,0,0.85);
+}
+
+.map-overlay .target-node.active .target-glow {
+  fill: rgba(255,64,64,0.32);
+}
+
+.map-overlay .flight-dot {
+  fill: #ffffff;
+  stroke: rgba(255,255,255,0.7);
+  stroke-width: 0.8;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.8));
+  animation: flightBlink 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes flightBlink {
+  0% { opacity: 0.25; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.map-overlay .target-crosshair {
+  pointer-events: none;
+  opacity: 0.4;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform-origin: center;
+}
+
+.map-overlay .target-crosshair.prelaunch {
+  opacity: 0.65;
+}
+
+.map-overlay .target-crosshair.launch {
+  opacity: 0.95;
+  transform: scale(1.08);
+}
+
+.map-overlay .target-crosshair.active {
+  transform: scale(1.12);
+}
+
+.map-overlay .target-crosshair .crosshair-ring {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 1.1;
+  stroke-dasharray: 4 4;
+}
+
+.map-overlay .target-crosshair .crosshair-line {
+  stroke: var(--danger);
+  stroke-width: 1;
+}
+
+.map-overlay .target-crosshair.destroyed {
+  opacity: 1;
+  animation: none;
+  transform: scale(1.08);
+}
+
+.map-overlay .target-crosshair.destroyed .crosshair-ring {
+  stroke-width: 2;
+  stroke-dasharray: 2 6;
+}
+
+.map-overlay .target-crosshair.destroyed .crosshair-line {
+  stroke-width: 1.6;
+}
+
+.map-overlay .detonation-marker {
+  pointer-events: none;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.map-overlay .detonation-flash {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: detonationFlash 1.8s ease-out forwards;
+}
+
+.map-overlay .detonation-ring {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.map-overlay .detonation-ring.shock {
+  stroke: rgba(255,110,40,0.5);
+  stroke-width: 2.2;
+  stroke-dasharray: 8 6;
+}
+
+.map-overlay .detonation-ring.wave {
+  stroke: rgba(255,180,60,0.65);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 4;
+}
+
+.map-overlay .detonation-core {
+  fill: rgba(255,235,180,0.9);
+  stroke: rgba(255,205,120,0.7);
+  stroke-width: 1;
+  filter: drop-shadow(0 0 8px rgba(255,210,120,0.8));
+  animation: detonationCorePulse 1.4s ease-out forwards;
+}
+
+.map-overlay .detonation-residue {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.map-overlay .detonation-residue-core {
+  fill: rgba(255,120,40,0.18);
+  stroke: rgba(255,120,40,0.5);
+  stroke-width: 1;
+  filter: drop-shadow(0 0 6px rgba(255,120,40,0.35));
+}
+
+.map-overlay .detonation-residue-ring {
+  fill: none;
+  stroke: rgba(255,190,60,0.35);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 6;
+}
+
+.map-overlay .detonation-residue-ring.outer {
+  stroke: rgba(255,120,40,0.45);
+  stroke-width: 1;
+  stroke-dasharray: 1 5;
+}
+
+.map-overlay .detonation-residue-mark {
+  stroke: rgba(255,210,120,0.9);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.map-overlay .target-node.detonated .target-label {
+  fill: rgba(255,220,120,0.9);
+  text-shadow: 0 0 8px rgba(255,150,40,0.8);
+}
+
+.map-overlay .target-node.detonated .target-crosshair {
+  display: none;
+}
+
+@keyframes detonationFlash {
+  0% { transform: scale(0.3); opacity: 0.8; }
+  45% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+@keyframes detonationCorePulse {
+  0% { transform: scale(0.4); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(0.8); opacity: 0; }
+}
+
+@keyframes crosshairExplode {
+  0% { transform: scale(1); opacity: 1; }
+  70% { transform: scale(1.8); opacity: 0.4; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+.launch-site {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease;
+}
+
+.site-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--ok);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--ok);
+  animation: sitePulse 2s infinite;
+}
+
+.site-label {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: bold;
+  color: var(--ok);
+  text-shadow: 0 0 4px var(--ok);
+  letter-spacing: 1px;
+}
+
+.target-marker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease;
+}
+
+.marker-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--danger);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--danger);
+  position: relative;
+  z-index: 3;
+}
+
+.marker-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--danger);
+  border-radius: 50%;
+  animation: markerPulse 1.5s infinite;
+}
+
+.marker-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--danger);
+  border-radius: 50%;
+}
+
+.marker-crosshair::before,
+.marker-crosshair::after {
+  content: '';
+  position: absolute;
+  background: var(--danger);
+}
+
+.marker-crosshair::before {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.marker-crosshair::after {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+@keyframes markerPulse {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
+
+.trajectory-line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--warn), var(--danger));
+  transform-origin: left center;
+  transform: rotate(-10deg);
+  box-shadow: 0 0 8px var(--warn);
+  animation: trajectoryGlow 2s infinite;
+}
+
+@keyframes trajectoryGlow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.target-destruction {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+.explosion-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border: 3px solid var(--danger);
+  border-radius: 50%;
+  animation: explosionRing 1.5s ease-out forwards;
+}
+
+.explosion-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: var(--warn);
+  border-radius: 50%;
+  box-shadow: 0 0 20px var(--warn);
+  animation: explosionDot 1.5s ease-out forwards;
+}
+
+.explosion-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 2px;
+  background: var(--danger);
+  border-radius: 50%;
+  animation: explosionParticles 1.5s ease-out forwards;
+}
+
+.explosion-particles::before,
+.explosion-particles::after {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: var(--warn);
+  border-radius: 50%;
+}
+
+.explosion-particles::before {
+  top: -10px;
+  left: -10px;
+  animation: particle1 1.5s ease-out forwards;
+}
+
+.explosion-particles::after {
+  top: 10px;
+  right: -10px;
+  animation: particle2 1.5s ease-out forwards;
+}
+
+@keyframes explosionRing {
+  0% { width: 0; height: 0; opacity: 1; }
+  50% { width: 40px; height: 40px; opacity: 0.8; }
+  100% { width: 60px; height: 60px; opacity: 0; }
+}
+
+@keyframes explosionDot {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  50% { transform: translate(-50%, -50%) scale(2); opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+}
+
+@keyframes explosionParticles {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+@keyframes particle1 {
+  0% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(-20px, -20px); opacity: 0; }
+}
+
+@keyframes particle2 {
+  0% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(20px, 20px); opacity: 0; }
+}
+
+.map-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.coord-label {
+  font-size: 8px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.coord-value {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--secondary);
+  text-shadow: 0 0 4px var(--secondary);
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--grid);
+  border-radius: 3px;
+  text-align: center;
+}

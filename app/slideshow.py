@@ -8,6 +8,7 @@ import sys
 from PySide6.QtCore import QObject, QProcess, QTimer, Qt
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QWidget
+from rocket import game_active
 
 
 class Slideshow(QWidget):
@@ -115,7 +116,7 @@ class IdleSlideshow(QObject):
             self.handle_event(event.decode().strip())
 
     def handle_event(self, event):
-        if event == "idled" and not QApplication.activeModalWidget():
+        if event == "idled" and not QApplication.activeModalWidget() and not game_active():
             self.view.start()
         elif event == "resumed":
             self.view.hide()

@@ -20,7 +20,7 @@ from slideshow import IdleSlideshow
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "assets"
-SOCKET = f"saar-home-{os.getuid()}"
+SOCKET = f"saar-home-{getattr(os, 'getuid', lambda: 0)()}"
 CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 
 PATHS = {
@@ -41,6 +41,7 @@ PATHS = {
     "home": '<path d="M3 11l9-8 9 8M6 9v12h5v-7h3v7h4V9"/>',
     "battery": '<rect x="2" y="6" width="18" height="12" rx="2"/><path d="M23 10v4M6 9v6M10 9v6M14 9v6"/>',
     "charger": '<path d="M8 2v5m8-5v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/>',
+    "rocket": '<path d="M14 4c3-2 6-2 6-2s0 3-2 6l-7 7-5-5zM6 10H3l-1 5 5-1m4 1-1 5 5-1v-3M6 17l-3 4 4-3"/><circle cx="15" cy="7" r="1.5"/>',
 }
 
 
@@ -58,6 +59,7 @@ def icon(name, color="#e6e9df", size=40):
 
 
 BUTTON_ICONS = {
+    "rocket": (),
     "youtube": (),
     "settings": ("preferences-system",),
     "music": ("com.spotify.Client", "spotify"),
@@ -341,6 +343,7 @@ class Home(QWidget):
         grid.setSpacing(24)
         grid.setContentsMargins(48, 36, 48, 36)
         specs = [
+            ("rocket", "Rocket Launch", "Airsoft-Spiel starten", "rocket", False),
             ("music", "Spotify", "Der Sound für euren Tag", "spotify", False),
             ("web", "Internet", "Browser öffnen", "web", False),
             ("youtube", "YouTube", "Videos & Musik öffnen", "youtube", False),
@@ -351,8 +354,11 @@ class Home(QWidget):
         self.tiles = {}
         for i, (symbol, title, subtitle, action, accent) in enumerate(specs):
             tile = Tile(symbol, title, subtitle, lambda checked=False, a=action: self.launch(a), accent)
+            tile.setMinimumWidth(150)
             self.tiles[action] = tile
-            grid.addWidget(tile, i // 3, i % 3)
+            grid.addWidget(tile, i // 4, i % 4, 1, 2 if action == "settings" else 1)
+        for column in range(4):
+            grid.setColumnStretch(column, 1)
         layout.addLayout(grid, 1)
         self.feedback = QLabel()
         self.feedback.hide()
@@ -445,9 +451,12 @@ class Home(QWidget):
     def resizeEvent(self, event):
         self.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12, 24 if self.width() < 1000 else 40, 14)
         compact = self.width() < 1000 or self.height() < 650
-        inset_x, inset_y = (16, 20) if compact else (48, 36)
+        inset_x, inset_y = (8, 14) if compact else (24, 36)
         self.tile_grid.setContentsMargins(inset_x, inset_y, inset_x, inset_y)
-        self.tile_grid.setSpacing(20 if compact else 24)
+        self.tile_grid.setSpacing(14 if compact else 24)
+        for tile in self.tiles.values():
+            title = tile.findChild(QLabel, "tileTitle")
+            title.setStyleSheet("color: #efede3; font-size: 18px;" if compact else "color: #efede3; font-size: 22px;")
         super().resizeEvent(event)
 
     def update_status(self, status):
@@ -468,6 +477,7 @@ class Home(QWidget):
                 return ["flatpak", "run", "com.spotify.Client"]
             return ["firefox", "--new-window", "https://open.spotify.com"]
         return {
+            "rocket": [sys.executable, str(HERE / "rocket.py")],
             "web": ["firefox", "--new-window", "https://start.duckduckgo.com"],
             "files": ["dolphin", str(Path.home())],
             "club": ["firefox", "--new-window", CLUB_WEBSITE],
@@ -492,6 +502,10 @@ class Home(QWidget):
             self.set_feedback("Diese Anwendung fehlt. Bitte die Vereinsadministration kontaktieren.")
             return
         process = QProcess(self)
+        if action == "rocket":
+            if any(p.property("action") == "rocket" for p in self.processes):
+                return
+            process.setProperty("action", action)
         # GUI applications must not inherit cloud-init's or a terminal's session env.
         self.processes.append(process)
         process.errorOccurred.connect(lambda _: self.set_feedback("Die Anwendung konnte nicht gestartet werden."))
@@ -516,7 +530,9 @@ class Home(QWidget):
 
     def app_finished(self, process, code, status):
         if code != 0:
-            self.set_feedback("Die App wurde mit einem Fehler beendet. Bitte erneut versuchen.")
+            detail = bytes(process.readAllStandardError()).decode(errors="replace").strip()
+            self.set_feedback(detail if process.property("action") == "rocket" and detail else
+                              "Die App wurde mit einem Fehler beendet. Bitte erneut versuchen.")
         if process in self.processes:
             self.processes.remove(process)
         process.deleteLater()

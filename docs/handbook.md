@@ -68,6 +68,26 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 
 - Spotify: native Flatpak-App, wenn installiert; sonst Spotify im Browser.
 - Internet: Firefox.
+- Rocket Launch: startet die mitgelieferte Airsoft-Spielkonsole in Firefox.
+  Der lokale Python-Server startet bei Bedarf auf `127.0.0.1:18741`, ohne
+  Terminal, Adminfreigabe, Node.js oder Internet. Ein belegter fremder Port
+  wird als Fehler gemeldet; andere Prozesse werden nicht beendet.
+  Ein zweites Spielfenster bleibt gesperrt, solange das erste geöffnet ist.
+  Eine laufende Runde verhindert über ein lokales Lebenszeichen die Diashow.
+  Nach einem verlorenen Lebenszeichen läuft dieser Schutz nach 90 Sekunden ab.
+  Der Server bleibt für weitere Starts bis zum Sitzungsende verfügbar.
+  „Spielleitung“ öffnet nach Eingabe eines Spielcodes die Einstellungen;
+  das ist ein Bedienungsschutz, keine getrennte Administratoranmeldung.
+  Die mitgelieferten Startwerte sind Startcode `8421`, Entschärfungscode `0000`,
+  20 Sekunden Countdown und 50 Sekunden Flugzeit. Eigene Einstellungen unter
+  `~/.config/saar-fighters/rocket-launch.json` überstehen OS-Updates.
+  Die Countdown-Entschärfung benötigt zehn Sekunden und muss vor Ablauf fertig
+  sein; die Flug-Entschärfung ist eine separat schaltbare sofortige Aktion.
+  „Neue Runde / Abbrechen“ bricht eine aktive Runde erst nach Bestätigung ab.
+  Neuladen und Schließen während der Runde lösen eine Browser-Rückfrage aus.
+  Ein bestätigtes Neuladen oder ein Absturz setzt die Runde zurück.
+  Spielregeln und Codes werden vor der nächsten Runde gespeichert; während
+  einer Runde sind Änderungen gesperrt. Vollbild ist direkt oben erreichbar.
 - YouTube: große Kachel, öffnet YouTube in Firefox.
 - Dateien: Dolphin, unter anderem für Musik und USB-Sticks.
 - Firefox (einschließlich YouTube und Vereinswebseite), Spotify und Dolphin
@@ -101,6 +121,15 @@ Das zufällig erzeugte Passwort der ursprünglichen Entwicklungs-VM liegt
 nur lokal in `build/vm/credentials.txt`, nicht im Repository.
 
 ## Architektur
+
+Die Spieldateien liegen unter `app/rocket-launch/`; `app/rocket.py` stellt
+sie und die validierte Konfiguration ausschließlich über Loopback bereit.
+Die bestehenden Installer-, VM-, ISO- und Updatewege übernehmen diesen
+App-Unterordner automatisch. Nach Änderungen am separaten Projekt
+`airsoft rocket launch` dessen `index.html`, `js/`, `css/` und `assets/`
+in den gebündelten Ordner übernehmen. Persönliche Konfiguration dabei nicht
+als neue Vorgabe kopieren. Die veröffentlichte ISO 0.2.0 erhält Änderungen
+erst durch ein veröffentlichtes Update oder einen neuen ISO-Build.
 
 Die Oberfläche ist eine native Qt/PySide6-Anwendung. KDE Plasma/Wayland
 übernimmt Fensterverwaltung, Audio, Netzwerk und Geräte. Ein angehefteter Taskleisten-Eintrag öffnet die Startseite. Ein Benutzerdienst startet sie beim
