@@ -18,6 +18,12 @@ Diese Fotos sind nicht von der MIT-Lizenz des Programmcodes erfasst.
 
 ## Weitere Bilder
 
+`app/assets/rocket-launch.png` wurde am 25. Oktober 2026 mit dem integrierten
+ImageGen-Werkzeug als eigenes Icon für die Rocket-Launch-Kachel generiert.
+Es besitzt einen transparenten Hintergrund und verwendet Khaki, Olive und
+eine orangefarbene Flamme. Der Generierungsprompt steht in
+`docs/rocket-icon-prompt.txt`.
+
 `app/assets/club-logo.gif` ist das unveränderte Vereinslogo von
 **Saar-Fighters AS e.V.**, heruntergeladen am 20. Oktober 2026.
 Die Oberfläche skaliert es proportional.

@@ -88,6 +88,8 @@ def configure_icons():
 
 
 def button_icon(name, size=40):
+    if name == "rocket":
+        return QIcon(str(ASSETS / "rocket-launch.png"))
     if name == "youtube":
         return QIcon(str(ASSETS / "youtube.png"))
     if name == "club":
