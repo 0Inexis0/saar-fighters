@@ -30,6 +30,11 @@ curl -fsSL https://raw.githubusercontent.com/0Inexis0/saar-fighters/main/system/
 
 Der Einzeiler fragt vor Änderungen nach und formatiert keine Laufwerke. Das Wartungspasswort legst du selbst fest. Updates benötigen keinen GitHub-Login.
 
+**SSH-Fernwartung:** Systemupdates aktivieren einen Zugang im lokalen IPv4-Netz
+auf Port 2222, ausschließlich mit dem hinterlegten SSH-Schlüssel des Betreibers.
+Bei Übernahme für eigene Rechner diesen öffentlichen Schlüssel ersetzen.
+[Einrichtung, Diagnose und Abschalten](docs/ssh-access.md).
+
 > **ISO:** x86_64 · 4 GB RAM · 32 GB Laufwerk · USB ab 8 GB · Secure Boot aus. Der grafische Installer löscht das ausgewählte Ziellaufwerk.
 
 ---
