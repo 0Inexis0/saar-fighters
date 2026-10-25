@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QApplication, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
     QMessageBox, QPlainTextEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
-from devices import AudioSheet, BluetoothSheet, DeviceClient, WifiSheet, label
+from devices import AudioSheet, BluetoothSheet, BrightnessSheet, DeviceClient, WifiSheet, label
 from hardware import status_labels
 from slideshow import IdleSlideshow
 
@@ -26,10 +26,13 @@ CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 PATHS = {
     "play": '<path d="m8 4 12 8-12 8z"/>',
     "pause": '<path d="M8 4v16M16 4v16"/>',
+    "previous": '<path d="M5 5v14m14-14L8 12l11 7z"/>',
+    "next": '<path d="M19 5v14M5 5l11 7-11 7z"/>',
     "muted": '<path d="M3 9h4l5-4v14l-5-4H3zM16 9l6 6M22 9l-6 6"/>',
     "youtube": '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/>',
     "music": '<path d="M9 18V5l12-3v13M9 8l12-3"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="18" cy="15" rx="3" ry="2"/>',
     "settings": '<circle cx="12" cy="12" r="3"/><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v3l1 2-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1-2v-3l-1-2 2-3 2 .2z"/>',
+    "brightness": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
     "web": '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/>',
     "wifi": '<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="20" r=".8"/>',
     "sound": '<path d="M3 9h4l5-4v14l-5-4H3zM16 8a6 6 0 0 1 0 8M19 4a11 11 0 0 1 0 16"/>',
@@ -62,6 +65,7 @@ BUTTON_ICONS = {
     "rocket": (),
     "youtube": (),
     "settings": ("preferences-system",),
+    "brightness": ("display-brightness",),
     "music": ("com.spotify.Client", "spotify"),
     "web": ("firefox",),
     "folder": ("org.kde.dolphin", "system-file-manager"),
@@ -166,6 +170,86 @@ class Tile(QPushButton):
         self.clicked.connect(action)
 
 
+class MusicTile(QFrame):
+    """Now-playing information and controls for the selected session player."""
+    def __init__(self, action):
+        super().__init__()
+        self.setObjectName("musicTile")
+        self.setAccessibleName("Musikplayer")
+        self.setMinimumSize(150, 160)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(5)
+        layout.addStretch()
+        heading = QHBoxLayout()
+        heading.setSpacing(6)
+        heading.addStretch()
+        symbol = QLabel()
+        symbol.setPixmap(icon("music", "#c3b48b", 18).pixmap(QSize(18, 18)))
+        heading.addWidget(symbol)
+        heading.addWidget(label("Musikplayer", "font-size: 14px; font-weight: 700;"))
+        heading.addStretch()
+        layout.addLayout(heading)
+        self.source = StatusValue()
+        self.source.setStyleSheet("color: #b7b6a6; font-size: 11px;")
+        self.track = StatusValue()
+        self.track.setStyleSheet("font-size: 16px; font-weight: 700;")
+        self.artist = StatusValue()
+        self.artist.setStyleSheet("color: #b7b6a6; font-size: 12px;")
+        for widget in (self.source, self.track, self.artist):
+            widget.setTextFormat(Qt.TextFormat.PlainText)
+            widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(widget)
+        controls = QHBoxLayout()
+        controls.setSpacing(4)
+        controls.addStretch()
+        self.buttons = {}
+        for name, title in (("previous", "Vorheriger Titel"), ("playpause", "Play"),
+                            ("next", "Nächster Titel")):
+            button = QPushButton()
+            button.setObjectName("musicPlay" if name == "playpause" else "musicControl")
+            button.setFixedSize(44 if name == "playpause" else 32, 36)
+            button.setIcon(icon("play" if name == "playpause" else name,
+                                "#24261b" if name == "playpause" else "#eeece1", 18))
+            button.setIconSize(QSize(18, 18))
+            button.setAccessibleName(title)
+            button.setToolTip(title)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(lambda checked=False, a=name: action(a))
+            controls.addWidget(button)
+            self.buttons[name] = button
+        controls.addStretch()
+        layout.addLayout(controls)
+        layout.addStretch()
+        self.update_state({})
+
+    def update_state(self, data, error=None):
+        if error or not data.get("player"):
+            self.source.setText("Nicht verbunden" if error else "Keine Wiedergabe")
+            self.track.setText("Player nicht erreichbar" if error else "Bereit für Musik")
+            self.artist.setText("Bitte erneut versuchen" if error else "Spotify oder YouTube öffnen")
+        else:
+            state = "Läuft" if data.get("playing") else (
+                "Gestoppt" if data.get("playback_status") == "Stopped" else "Pausiert")
+            self.source.setText(f"{data.get('player_name', 'Player')} · {state}")
+            self.track.setText(data.get("title") or "Kein Titel verfügbar")
+            self.artist.setText(data.get("artist") or "Kein Interpret verfügbar")
+        self.setToolTip(error or "Steuert die Wiedergabe in Spotify oder im Browser.")
+        playing = not error and data.get("playing", False)
+        play = self.buttons["playpause"]
+        play.setAccessibleName("Pause" if playing else "Play")
+        play.setToolTip("Pause" if playing else "Play")
+        play.setIcon(icon("pause" if playing else "play", "#24261b", 18))
+        for name, capability in (("playpause", "available"), ("previous", "can_previous"),
+                                 ("next", "can_next")):
+            self.buttons[name].setEnabled(not error and bool(data.get(capability)))
+
+    def set_busy(self):
+        for button in self.buttons.values():
+            button.setEnabled(False)
+
+
 class UpdateDialog(QDialog):
     def __init__(self, parent, preview=False):
         super().__init__(parent)
@@ -247,26 +331,29 @@ class SettingsDialog(QDialog):
     def __init__(self, home):
         super().__init__(home)
         self.setWindowTitle("Einstellungen")
-        self.resize(660, 520)
+        self.resize(min(home.width() - 32, 900), min(home.height() - 24, 520))
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
         layout.addWidget(label("Einstellungen", "font-size: 28px; font-weight: 700;"))
-        layout.addWidget(label("Verbindungen, Ton und Updates für euren Rechner."))
+        layout.addWidget(label("Verbindungen, Ton, Bildschirm und Updates für euren Rechner."))
         grid = QGridLayout()
         grid.setSpacing(16)
         self.tiles = {}
         for i, (symbol, title, subtitle, action) in enumerate((
             ("wifi", "WLAN", "Netzwerk verbinden", "wifi"),
             ("bluetooth", "Bluetooth", "Geräte verbinden", "bluetooth"),
-            ("sound", "Lautstärke", "Boxen & Audioausgang", "sound"),
+            ("sound", "Lautstärke", "Boxen & Audioausgänge", "sound"),
+            ("brightness", "Bildschirm", "Helligkeit anpassen", "brightness"),
             ("update", "Updates", "System & Apps aktualisieren", "updates"),
         )):
             callback = (lambda: home.show_updates(self)) if action == "updates" else (
                 lambda checked=False, a=action: home.open_device(a, self))
             tile = Tile(symbol, title, subtitle, callback)
             self.tiles[action] = tile
-            grid.addWidget(tile, i // 2, i % 2)
+            grid.addWidget(tile, i // 3, i % 3, 1, 2 if action == "updates" else 1)
+        for column in range(3):
+            grid.setColumnStretch(column, 1)
         layout.addLayout(grid, 1)
         self.back_button = QPushButton("Zurück zur Startseite")
         self.back_button.clicked.connect(self.reject)
@@ -351,14 +438,16 @@ class Home(QWidget):
             ("youtube", "YouTube", "Videos & Musik öffnen", "youtube", False),
             ("folder", "Dateien", "Musik, Bilder & USB-Sticks", "files", False),
             ("club", "Vereinswebseite", "Saar-Fighters AS e.V.", "club", False),
-            ("settings", "Einstellungen", "WLAN, Bluetooth, Ton & Updates", "settings", False),
+            ("settings", "Einstellungen", "WLAN, Bluetooth, Ton, Bildschirm & Updates", "settings", False),
         ]
         self.tiles = {}
         for i, (symbol, title, subtitle, action, accent) in enumerate(specs):
             tile = Tile(symbol, title, subtitle, lambda checked=False, a=action: self.launch(a), accent)
             tile.setMinimumWidth(150)
             self.tiles[action] = tile
-            grid.addWidget(tile, i // 4, i % 4, 1, 2 if action == "settings" else 1)
+            grid.addWidget(tile, i // 4, i % 4)
+        self.music_tile = MusicTile(lambda action: self.quick_action("media", action))
+        grid.addWidget(self.music_tile, 1, 3)
         for column in range(4):
             grid.setColumnStretch(column, 1)
         layout.addLayout(grid, 1)
@@ -371,15 +460,12 @@ class Home(QWidget):
         self.media_state = {}
         self.quick_busy = {"media": False, "audio": False}
         self.quick_pending = {"media": False, "audio": False}
-        self.play_button = QPushButton("Play / Pause")
+        self.play_button = self.music_tile.buttons["playpause"]
         self.mute_button = QPushButton("Stummschalten")
-        for button in (self.play_button, self.mute_button):
-            button.setEnabled(False)
-            button.setIconSize(QSize(20, 20))
-            footer.addWidget(button)
-        self.play_button.setIcon(icon("play", size=20))
+        self.mute_button.setEnabled(False)
+        self.mute_button.setIconSize(QSize(20, 20))
+        footer.addWidget(self.mute_button)
         self.mute_button.setIcon(icon("sound", size=20))
-        self.play_button.clicked.connect(lambda: self.quick_action("media"))
         self.mute_button.clicked.connect(lambda: self.quick_action("audio"))
         self.quick_timer = QTimer(self)
         self.quick_timer.timeout.connect(self.refresh_quick_controls)
@@ -417,32 +503,30 @@ class Home(QWidget):
         data = data or {}
         if group == "media":
             self.media_state = data if not error else {}
-            available = not error and data.get("available", False)
-            playing = available and data.get("playing", False)
-            self.play_button.setText("Pause" if playing else "Play")
-            self.play_button.setIcon(icon("pause" if playing else "play", size=20))
-            self.play_button.setEnabled(bool(available))
-            self.play_button.setToolTip(error or (data.get("player", "") if available else
-                                                  "Zuerst Musik in Spotify oder ein Video im Browser öffnen."))
+            self.music_tile.update_state(data, error)
         else:
-            output = next((o for o in data.get("outputs", []) if o.get("default")), None)
+            output = data.get("control") or next((o for o in data.get("outputs", []) if o.get("default")), None)
             muted = bool(output and output.get("mute"))
             self.mute_button.setText("Ton einschalten" if muted else "Stummschalten")
             self.mute_button.setIcon(icon("muted" if muted else "sound", size=20))
             self.mute_button.setEnabled(not error and output is not None)
-            self.mute_button.setToolTip(error or ("Ton für den aktuellen Audioausgang ein-/ausschalten."
+            self.mute_button.setToolTip(error or ("Ton für alle ausgewählten Audioausgänge ein-/ausschalten."
                                                 if output else "Kein Audioausgang verfügbar."))
 
-    def quick_action(self, group):
+    def quick_action(self, group, action="playpause"):
+        if group == "media" and action not in ("playpause", "previous", "next"):
+            raise ValueError("Diese Medienaktion ist nicht verfügbar.")
         if self.quick_busy[group]:
             return
         if self.preview:
             self.set_feedback("Vorschau: Die Wiedergabe und der Ton bleiben unverändert.")
             return
         self.quick_busy[group] = True
-        button = self.play_button if group == "media" else self.mute_button
-        button.setEnabled(False)
-        operation = "media_playpause" if group == "media" else "audio_toggle"
+        if group == "media":
+            self.music_tile.set_busy()
+        else:
+            self.mute_button.setEnabled(False)
+        operation = f"media_{action}" if group == "media" else "audio_toggle"
         args = {"player": self.media_state.get("player")} if group == "media" else {}
         def finished(data, error):
             self.quick_busy[group] = False
@@ -525,7 +609,8 @@ class Home(QWidget):
         dialog.deleteLater()
 
     def open_device(self, action, parent=None):
-        sheet = {"wifi": WifiSheet, "bluetooth": BluetoothSheet, "sound": AudioSheet}[action](
+        sheet = {"wifi": WifiSheet, "bluetooth": BluetoothSheet, "sound": AudioSheet,
+                 "brightness": BrightnessSheet}[action](
             parent or self, self.device_client)
         sheet.exec()
         sheet.deleteLater()
@@ -592,6 +677,12 @@ QPushButton:disabled { color: #929382; background: #2c2e25; }
 QPushButton#tile { background: #303329; border-radius: 18px; padding: 0; }
 QPushButton#tile:hover, QPushButton#tile:focus { background: #454a36; }
 QPushButton#tile:pressed { background: #53583e; }
+QFrame#musicTile { background: #303329; border: none; border-radius: 18px; }
+QPushButton#musicControl, QPushButton#musicPlay { padding: 0; border-radius: 10px; }
+QPushButton#musicPlay { background: #a5a77a; }
+QPushButton#musicPlay:hover, QPushButton#musicPlay:focus { background: #bec093; }
+QPushButton#musicPlay:pressed { background: #929568; }
+QPushButton#musicPlay:disabled { background: #454936; }
 QPushButton#primaryTile { background: #a5a77a; border-radius: 18px; padding: 0; }
 QPushButton#primaryTile:hover, QPushButton#primaryTile:focus { background: #bec093; }
 QPushButton#primaryTile:pressed { background: #929568; }

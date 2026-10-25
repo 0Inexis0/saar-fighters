@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 from PySide6.QtCore import QObject, QProcess, Qt, QTimer, Signal, QSize
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget,
+from PySide6.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                               QListWidgetItem, QPushButton, QSlider, QVBoxLayout)
 
 from hardware import wifi_password_valid
@@ -33,6 +33,10 @@ class DeviceClient(QObject):
     def __init__(self, parent=None, preview=False):
         super().__init__(parent)
         self.preview = preview
+        self.preview_brightness = 70
+        self.preview_audio_ids = ["1"]
+        self.preview_audio_volume = 55
+        self.preview_audio_muted = False
         self.sequence = 0
         self.pending = {}
         self.buffer = b""
@@ -55,7 +59,7 @@ class DeviceClient(QObject):
 
     def request(self, operation, args=None, callback=None):
         if self.preview:
-            QTimer.singleShot(0, lambda: self.preview_reply(operation, callback))
+            QTimer.singleShot(0, self, lambda: self.preview_reply(operation, callback, args))
             return
         if self.process.state() != QProcess.ProcessState.Running:
             if callback:
@@ -111,10 +115,44 @@ class DeviceClient(QObject):
                 self.process.kill()
                 self.process.waitForFinished(1000)
 
-    def preview_reply(self, operation, callback):
+    def preview_reply(self, operation, callback, args=None):
+        if self.stopping:
+            return
+        args = args or {}
+        if operation.startswith("audio"):
+            if operation == "audio_outputs":
+                self.preview_audio_ids = args["ids"]
+            elif operation == "audio_output":
+                self.preview_audio_ids = [args["id"]]
+            elif operation == "audio_volume":
+                self.preview_audio_volume = args["value"]
+            elif operation == "audio_mute":
+                self.preview_audio_muted = args["muted"]
+            elif operation == "audio_toggle":
+                self.preview_audio_muted = not self.preview_audio_muted
+            outputs = [{"id": key, "name": "example" + key, "description": name,
+                        "selected": key in self.preview_audio_ids,
+                        "default": self.preview_audio_ids == [key],
+                        "mute": self.preview_audio_muted, "volume": self.preview_audio_volume}
+                       for key, name in (("1", "Vereinsboxen"), ("2", "HDMI / Bildschirm"),
+                                         ("3", "USB-Lautsprecher"))]
+            control = {"volume": self.preview_audio_volume, "mute": self.preview_audio_muted}
+            if callback:
+                callback({"outputs": outputs, "control": control,
+                          "message": "Vorschau: Auswahl übernommen."}, None)
+            return
+        if operation == "brightness_set":
+            self.preview_brightness = args["value"]
+        if operation in ("brightness", "brightness_set"):
+            if callback:
+                callback({"displays": [{"id": "preview", "name": "Laptop-Bildschirm",
+                                       "value": self.preview_brightness, "internal": True}]}, None)
+            return
         data = {
             "media_status": {"available": True, "playing": True,
-                             "player": "org.mpris.MediaPlayer2.spotify"},
+                             "player": "org.mpris.MediaPlayer2.spotify", "player_name": "Spotify",
+                             "playback_status": "Playing", "title": "Euer nächster Lieblingssong",
+                             "artist": "Beispielinterpret", "can_previous": True, "can_next": True},
             "status": EXAMPLE_STATUS,
             "wifi": {"available": True, "enabled": True, "hardware_enabled": True, "networks": [
                 {"path": "/example/1", "name": "Vereinsheim", "strength": 91, "mode": "wpa-psk", "connected": True, "saved": "yes"},
@@ -124,8 +162,6 @@ class DeviceClient(QObject):
                 {"path": "/example/box", "name": "Vereinsboxen", "connected": True, "paired": True},
                 {"path": "/example/new", "name": "Neuer Lautsprecher", "connected": False, "paired": False},
             ]},
-            "audio": {"outputs": [{"id": "1", "name": "example", "description": "Vereinsboxen",
-                                  "default": True, "mute": False, "volume": 55}]},
         }.get(operation, {"message": "Vorschau: Es wurde keine Einstellung verändert."})
         if callback:
             callback(data, None)
@@ -464,62 +500,226 @@ class BluetoothSheet(Sheet):
         self.client.pairing.disconnect(self.pairing_event)
 
 
-class AudioSheet(Sheet):
+class BrightnessSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Lautstärke & Boxen", "Audioausgang auswählen und die Lautstärke einstellen.")
+        super().__init__(parent, client, "Bildschirmhelligkeit",
+                         "Bildschirm auswählen und die Helligkeit mit dem Regler anpassen.")
         self.list = QListWidget()
-        self.list.setAccessibleName("Audioausgänge")
+        self.list.setAccessibleName("Bildschirme mit Helligkeitssteuerung")
         self.body.addWidget(self.list, 1)
-        self.level = label("Lautstärke", "font-size: 22px; font-weight: 700;")
+        self.level = label("Helligkeit", "font-size: 22px; font-weight: 700;")
         self.body.addWidget(self.level)
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setRange(0, 100)
-        self.slider.setAccessibleName("Lautstärke in Prozent")
+        self.slider.setAccessibleName("Bildschirmhelligkeit in Prozent")
         self.body.addWidget(self.slider)
-        row = QHBoxLayout()
-        self.mute = QPushButton("Stummschalten")
-        self.choose = QPushButton("Diesen Ausgang verwenden")
-        self.choose.setObjectName("confirm")
-        row.addWidget(self.mute)
-        row.addWidget(self.choose)
-        self.body.addLayout(row)
-        self.controls = [self.slider, self.mute, self.choose, self.list]
-        self.muted = False
-        self.slider.valueChanged.connect(lambda value: self.level.setText(f"Lautstärke: {value} %"))
-        self.volume_timer = QTimer(self)
-        self.volume_timer.setSingleShot(True)
-        self.finished.connect(self.volume_timer.stop)
-        self.volume_timer.timeout.connect(lambda: self.action("audio_volume", {"value": self.slider.value()}))
-        self.slider.valueChanged.connect(lambda _: self.volume_timer.start(350))
-        self.mute.clicked.connect(lambda: self.action("audio_mute", {"muted": not self.muted}, self.load))
-        self.choose.clicked.connect(self.select_output)
+        ends = QHBoxLayout()
+        ends.addWidget(label("Dunkler"))
+        ends.addStretch()
+        ends.addWidget(label("Heller"))
+        self.body.addLayout(ends)
+        self.reload = QPushButton("Erneut laden")
+        self.reload.clicked.connect(self.load)
+        self.body.addWidget(self.reload)
+        self.controls = [self.list, self.slider, self.reload]
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(350)
+        self.timer.timeout.connect(self.apply)
+        self.finished.connect(self.timer.stop)
+        self.list.currentItemChanged.connect(self.selected)
+        self.slider.valueChanged.connect(self.changed)
+        self.slider.sliderReleased.connect(self.apply)
         self.load()
 
     def load(self):
-        self.request("audio", callback=self.loaded)
+        if self.busy:
+            return
+        self.working(True, "Bildschirme werden geladen …")
+        self.request("brightness", callback=self.loaded)
 
     def loaded(self, data, error):
+        selected = self.list.currentItem()
+        selected_id = selected.data(Qt.ItemDataRole.UserRole)["id"] if selected else None
+        self.working(False)
         self.list.clear()
-        outputs = (data or {}).get("outputs", [])
-        self.message.setText(error or ("Wähle die Boxen aus, über die die Musik laufen soll." if outputs
-                                       else "Kein Audioausgang erkannt. Bitte die Boxen anschließen."))
-        for control in self.controls:
-            control.setEnabled(bool(outputs) and not error)
-        for output in outputs:
-            item = QListWidgetItem(output["description"] + ("\nWird verwendet" if output["default"] else "\nVerfügbar"))
-            item.setData(Qt.ItemDataRole.UserRole, output)
+        screens = (data or {}).get("displays", []) if not error else []
+        for screen in screens:
+            item = QListWidgetItem(screen["name"])
+            item.setData(Qt.ItemDataRole.UserRole, screen)
             item.setSizeHint(QSize(0, 64))
             self.list.addItem(item)
-            if output["default"]:
+            if screen["id"] == selected_id:
                 self.list.setCurrentItem(item)
-                self.slider.blockSignals(True)
-                self.slider.setValue(min(100, output["volume"]))
-                self.slider.blockSignals(False)
-                self.level.setText(f'Lautstärke: {output["volume"]} %')
-                self.muted = output["mute"]
-                self.mute.setText("Ton einschalten" if self.muted else "Stummschalten")
+        if screens and not self.list.currentItem():
+            self.list.setCurrentRow(0)
+        self.list.setEnabled(bool(screens))
+        self.slider.setEnabled(bool(screens))
+        self.message.setText(error or ("Änderungen werden direkt übernommen." if screens else
+            "Kein steuerbarer Bildschirm erkannt. Bitte die Helligkeit direkt am Monitor einstellen."))
+
+    def selected(self, *_):
+        self.timer.stop()
+        item = self.list.currentItem()
+        self.slider.blockSignals(True)
+        self.slider.setValue(item.data(Qt.ItemDataRole.UserRole)["value"] if item else 0)
+        self.slider.blockSignals(False)
+        self.level.setText(f"Helligkeit: {self.slider.value()} %" if item else "Helligkeit nicht verfügbar")
+
+    def changed(self, value):
+        self.level.setText(f"Helligkeit: {value} %")
+        # Keep the selected screen fixed until the pending change is applied.
+        self.list.setEnabled(False)
+        self.reload.setEnabled(False)
+        self.back.setEnabled(False)
+        self.timer.start()
+
+    def apply(self):
+        if self.busy or self.closed or self.slider.isSliderDown():
+            return
+        self.timer.stop()
+        item = self.list.currentItem()
+        if not item:
+            return
+        self.working(True, "Helligkeit wird übernommen …")
+        self.request("brightness_set", {"id": item.data(Qt.ItemDataRole.UserRole)["id"],
+                                        "value": self.slider.value()}, self.loaded)
+
+    def reject(self):
+        if self.timer.isActive() or self.slider.isSliderDown():
+            return
+        super().reject()
+
+    def closeEvent(self, event):
+        if self.timer.isActive() or self.slider.isSliderDown():
+            event.ignore()
+        else:
+            super().closeEvent(event)
+
+
+class AudioSheet(Sheet):
+    def __init__(self, parent, client):
+        super().__init__(parent, client, "Lautstärke & Boxen",
+                         "Eine oder mehrere Boxen für die gleichzeitige Wiedergabe auswählen.")
+        self.list = QListWidget()
+        self.list.setAccessibleName("Audioausgänge für gleichzeitige Wiedergabe")
+        self.list.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.list.setStyleSheet("QListWidget::indicator { width: 24px; height: 24px; }")
+        self.body.addWidget(self.list, 1)
+        self.level = label("Gemeinsame Lautstärke", "font-size: 22px; font-weight: 700;")
+        self.body.addWidget(self.level)
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.setRange(0, 100)
+        self.slider.setAccessibleName("Gemeinsame Lautstärke in Prozent")
+        self.body.addWidget(self.slider)
+        row = QHBoxLayout()
+        self.mute = QPushButton("Stummschalten")
+        self.reload = QPushButton("Erneut laden")
+        self.choose = QPushButton("Auswahl übernehmen")
+        self.choose.setObjectName("confirm")
+        row.addWidget(self.mute)
+        row.addWidget(self.reload)
+        row.addWidget(self.choose)
+        self.body.addLayout(row)
+        self.controls = [self.slider, self.mute, self.choose, self.list, self.reload]
+        self.muted = False
+        self.has_control = False
+        self.volume_timer = QTimer(self)
+        self.volume_timer.setSingleShot(True)
+        self.volume_timer.setInterval(350)
+        self.finished.connect(self.volume_timer.stop)
+        self.volume_timer.timeout.connect(self.apply_volume)
+        self.slider.valueChanged.connect(self.volume_changed)
+        self.slider.sliderReleased.connect(self.apply_volume)
+        self.mute.clicked.connect(lambda: self.change("audio_mute", {"muted": not self.muted}, preserve=True))
+        self.choose.clicked.connect(self.select_output)
+        self.reload.clicked.connect(self.load)
+        self.list.itemChanged.connect(self.update_controls)
+        self.load()
+
+    def load(self):
+        if self.busy or self.volume_timer.isActive():
+            return
+        self.working(True, "Audioausgänge werden geladen …")
+        self.request("audio", callback=self.loaded)
+
+    def checked_ids(self):
+        return [self.list.item(i).data(Qt.ItemDataRole.UserRole)["id"]
+                for i in range(self.list.count()) if self.list.item(i).checkState() == Qt.CheckState.Checked]
+
+    def update_controls(self, *_):
+        pending = self.busy or self.volume_timer.isActive() or self.slider.isSliderDown()
+        self.list.setEnabled(not pending and self.list.count() > 0)
+        self.choose.setEnabled(not pending and bool(self.checked_ids()))
+        self.reload.setEnabled(not pending)
+        self.mute.setEnabled(not pending and self.has_control)
+        self.slider.setEnabled(not self.busy and self.has_control)
+        self.back.setEnabled(not pending)
+
+    def loaded(self, data, error, message="", preserve=False):
+        checked = self.checked_ids() if preserve else None
+        self.working(False)
+        self.list.blockSignals(True)
+        self.list.clear()
+        outputs = (data or {}).get("outputs", []) if not error else []
+        control = (data or {}).get("control") if not error else None
+        if control is None and not error:
+            control = next((o for o in outputs if o.get("default")), None)
+        self.has_control = control is not None
+        for output in outputs:
+            selected = output.get("selected", output.get("default", False))
+            item = QListWidgetItem(output["description"] + ("\nWird verwendet" if selected else "\nVerfügbar"))
+            item.setData(Qt.ItemDataRole.UserRole, output)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked if (output["id"] in checked if checked is not None else selected)
+                               else Qt.CheckState.Unchecked)
+            item.setSizeHint(QSize(0, 64))
+            self.list.addItem(item)
+        self.list.blockSignals(False)
+        self.slider.blockSignals(True)
+        self.slider.setValue(min(100, control["volume"]) if control else 0)
+        self.slider.blockSignals(False)
+        self.level.setText(f'Gemeinsame Lautstärke: {self.slider.value()} %' if control else "Lautstärke nicht verfügbar")
+        self.muted = bool(control and control["mute"])
+        self.mute.setText("Ton einschalten" if self.muted else "Stummschalten")
+        count = sum(o.get("selected", o.get("default", False)) for o in outputs)
+        self.message.setText(error or message or (
+            f"{count} Ausgänge aktiv. Gewünschte Boxen ankreuzen und die Auswahl übernehmen." if outputs
+            else "Kein Audioausgang erkannt. Bitte die Boxen anschließen."))
+        self.update_controls()
+
+    def change(self, operation, args, preserve=False):
+        if self.busy or self.closed:
+            return
+        self.working(True, "Einen Moment …")
+        def done(data, error):
+            self.client.refresh_status()
+            self.request("audio", callback=lambda state, read_error:
+                         self.loaded(state, read_error, error or (data or {}).get("message", ""), preserve or bool(error)))
+        self.request(operation, args, done)
+
+    def volume_changed(self, value):
+        self.level.setText(f"Gemeinsame Lautstärke: {value} %")
+        self.volume_timer.start()
+        self.update_controls()
+
+    def apply_volume(self):
+        if self.busy or self.closed or self.slider.isSliderDown():
+            return
+        self.volume_timer.stop()
+        self.change("audio_volume", {"value": self.slider.value()}, preserve=True)
 
     def select_output(self):
-        item = self.list.currentItem()
-        if item:
-            self.action("audio_output", {"id": item.data(Qt.ItemDataRole.UserRole)["id"]}, self.load)
+        ids = self.checked_ids()
+        if ids and not self.volume_timer.isActive():
+            self.change("audio_outputs", {"ids": ids})
+
+    def reject(self):
+        if not self.volume_timer.isActive() and not self.slider.isSliderDown():
+            super().reject()
+
+    def closeEvent(self, event):
+        if self.volume_timer.isActive() or self.slider.isSliderDown():
+            event.ignore()
+        else:
+            super().closeEvent(event)

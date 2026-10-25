@@ -47,10 +47,16 @@ class HomeTests(unittest.TestCase):
             self.home.resize(*size)
             self.app.processEvents()
             self.assertEqual((self.home.width(), self.home.height()), size)
-            for tile in self.home.tiles.values():
+            for tile in (*self.home.tiles.values(), self.home.music_tile):
                 self.assertTrue(self.home.rect().contains(tile.geometry()))
                 self.assertGreaterEqual(tile.width(), 150)
                 self.assertGreaterEqual(tile.height(), 104)
+            settings = self.home.tiles["settings"].geometry()
+            music = self.home.music_tile.geometry()
+            self.assertGreater(music.left(), settings.right())
+            self.assertEqual(music.top(), settings.top())
+            for button in self.home.music_tile.buttons.values():
+                self.assertTrue(self.home.music_tile.rect().contains(button.geometry()))
 
     def test_settings_navigation_and_return(self):
         self.assertEqual(set(self.home.tiles), {"rocket", "spotify", "web", "youtube", "files", "club", "settings"})
@@ -58,7 +64,7 @@ class HomeTests(unittest.TestCase):
         dialog.show()
         self.app.processEvents()
         with patch.object(self.home, "open_device") as device, patch.object(self.home, "show_updates") as updates:
-            for action in ("wifi", "bluetooth", "sound"):
+            for action in ("wifi", "bluetooth", "sound", "brightness"):
                 QTest.mouseClick(dialog.tiles[action], Qt.MouseButton.LeftButton)
                 device.assert_called_with(action, dialog)
             QTest.mouseClick(dialog.tiles["updates"], Qt.MouseButton.LeftButton)
@@ -68,10 +74,23 @@ class HomeTests(unittest.TestCase):
         self.assertTrue(self.home.isVisible())
         dialog.deleteLater()
 
+    def test_settings_fit_small_screens(self):
+        for size in ((800, 540), (1024, 600)):
+            self.home.resize(*size)
+            dialog = SettingsDialog(self.home)
+            dialog.show()
+            self.app.processEvents()
+            self.assertLessEqual(dialog.width(), size[0])
+            self.assertLessEqual(dialog.height(), size[1])
+            for tile in dialog.tiles.values():
+                self.assertTrue(dialog.rect().contains(tile.geometry()))
+            dialog.close()
+            dialog.deleteLater()
+
     def test_quick_controls_follow_real_status_and_errors(self):
         self.home.quick_status("media", {"available": True, "playing": True,
                                         "player": "org.mpris.MediaPlayer2.spotify"}, None)
-        self.assertEqual(self.home.play_button.text(), "Pause")
+        self.assertEqual(self.home.play_button.accessibleName(), "Pause")
         self.home.quick_status("audio", {"outputs": [{"default": True, "mute": True}]}, None)
         self.assertEqual(self.home.mute_button.text(), "Ton einschalten")
         with patch.object(self.home.device_client, "request") as request:
@@ -82,6 +101,46 @@ class HomeTests(unittest.TestCase):
         self.home.quick_status("audio", {"outputs": []}, None)
         self.assertFalse(self.home.play_button.isEnabled())
         self.assertFalse(self.home.mute_button.isEnabled())
+
+    def test_music_metadata_capabilities_and_closed_player(self):
+        state = {"available": True, "playing": True, "player": "org.mpris.MediaPlayer2.spotify",
+                 "player_name": "Spotify", "title": "Ein langer Titel " * 15,
+                 "artist": "<b>Interpret</b>", "can_previous": False, "can_next": True}
+        self.home.quick_status("media", state, None)
+        music = self.home.music_tile
+        self.app.processEvents()
+        self.assertEqual(music.track.toolTip(), state["title"])
+        self.assertEqual(music.artist.textFormat(), Qt.TextFormat.PlainText)
+        self.assertEqual(music.artist.full_text, state["artist"])
+        self.assertEqual(music.source.full_text, "Spotify · Läuft")
+        self.assertFalse(music.buttons["previous"].isEnabled())
+        self.assertTrue(music.buttons["next"].isEnabled())
+        self.assertEqual(self.home.width(), 1024)
+        self.home.quick_status("media", {"available": False}, None)
+        self.assertEqual(music.track.full_text, "Bereit für Musik")
+        self.assertEqual(music.artist.full_text, "Spotify oder YouTube öffnen")
+        self.assertTrue(all(not button.isEnabled() for button in music.buttons.values()))
+        self.home.quick_status("media", None, "Player geschlossen")
+        self.assertEqual(music.track.full_text, "Player nicht erreichbar")
+
+    def test_music_skip_buttons_target_the_displayed_player(self):
+        self.home.preview = False
+        state = {"player": "org.mpris.MediaPlayer2.firefox", "available": True,
+                 "playing": False, "can_previous": True, "can_next": True}
+        try:
+            for action in ("previous", "next"):
+                self.home.quick_status("media", state, None)
+                with patch.object(self.home.device_client, "request") as request:
+                    QTest.mouseClick(self.home.music_tile.buttons[action], Qt.MouseButton.LeftButton)
+                    request.assert_called_once()
+                    self.assertEqual(request.call_args.args[:2],
+                                     (f"media_{action}", {"player": state["player"]}))
+                    self.assertTrue(all(not button.isEnabled()
+                                        for button in self.home.music_tile.buttons.values()))
+                    request.call_args.args[2]({}, None)
+                    self.assertFalse(self.home.quick_busy["media"])
+        finally:
+            self.home.preview = True
 
     def test_quick_action_prevents_double_click_and_refreshes_after_failure(self):
         self.home.preview = False

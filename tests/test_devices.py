@@ -59,6 +59,31 @@ class BackendTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.backend = Backend(Mock())
 
+    async def test_brightness_routes_reads_and_selected_display_changes(self):
+        with patch("backend.brightness_request", new_callable=AsyncMock) as request:
+            await self.backend.perform("brightness", {})
+            request.assert_awaited_with()
+            await self.backend.perform("brightness_set", {"id": "display0", "value": 45})
+            request.assert_awaited_with("display0", 45)
+            request.reset_mock()
+            for args in ({"value": 45}, {"id": "", "value": 45}):
+                with self.assertRaises(ValueError):
+                    await self.backend.perform("brightness_set", args)
+            request.assert_not_awaited()
+
+    async def test_media_controls_route_only_supported_actions_to_selected_player(self):
+        player = "org.mpris.MediaPlayer2.spotify"
+        with patch("backend.media_request", new_callable=AsyncMock) as request:
+            for action in ("playpause", "previous", "next"):
+                await self.backend.perform(f"media_{action}", {"player": player})
+                request.assert_awaited_with(player, action)
+            request.reset_mock()
+            for operation, args in (("media_next", {}), ("media_previous", {"player": "other"}),
+                                    ("media_quit", {"player": player})):
+                with self.assertRaises(ValueError):
+                    await self.backend.perform(operation, args)
+            request.assert_not_awaited()
+
     async def test_desktop_mute_toggles_current_output_without_changing_volume(self):
         self.backend.pactl = AsyncMock(return_value="")
         await self.backend.perform("audio_toggle", {})

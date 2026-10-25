@@ -19,18 +19,32 @@ async def call(bus, destination, path, interface, member, signature="", body=Non
 def player_state(name, props):
     props = {key: value.value for key, value in props.items()}
     playing = props.get("PlaybackStatus") == "Playing"
+    metadata = props.get("Metadata", {})
+    metadata = {key: value.value for key, value in metadata.items()}
+    title = metadata.get("xesam:title", "")
+    artists = metadata.get("xesam:artist", [])
+    player_name = name.removeprefix("org.mpris.MediaPlayer2.").split(".")[0]
     return {"player": name, "playing": playing,
+            "player_name": player_name.capitalize(),
+            "playback_status": props.get("PlaybackStatus", "Stopped"),
+            "title": title if isinstance(title, str) else "",
+            "artist": ", ".join(artist for artist in artists if isinstance(artist, str))
+                      if isinstance(artists, list) else "",
+            "can_previous": bool(props.get("CanControl") and props.get("CanGoPrevious")),
+            "can_next": bool(props.get("CanControl") and props.get("CanGoNext")),
             "available": bool(props.get("CanControl") and
                               props.get("CanPause" if playing else "CanPlay"))}
 
 
 def choose_player(players):
-    eligible = [p for p in players if p["available"]]
+    eligible = [p for p in players if p["available"] or p.get("can_previous") or p.get("can_next")]
     return min(eligible, key=lambda p: (not p["playing"], "spotify" not in p["player"].lower(),
                                        p["player"]), default={"available": False})
 
 
-async def media_request(target=None):
+async def media_request(target=None, action="playpause"):
+    if action not in ("playpause", "previous", "next"):
+        raise ValueError("Diese Medienaktion ist nicht verfügbar.")
     bus = await asyncio.wait_for(MessageBus().connect(), 3)
     try:
         names = (await call(bus, "org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -46,9 +60,12 @@ async def media_request(target=None):
             if target not in names:
                 raise ValueError("Der Player wurde geschlossen. Bitte Musik oder ein Video öffnen.")
             state = await inspect(target)
-            if not state["available"]:
+            capability = {"playpause": "available", "previous": "can_previous", "next": "can_next"}[action]
+            if not state[capability]:
                 raise ValueError("Dieser Player lässt sich gerade nicht steuern.")
-            await call(bus, target, PATH, PLAYER, "Pause" if state["playing"] else "Play")
+            method = {"playpause": "Pause" if state["playing"] else "Play",
+                      "previous": "Previous", "next": "Next"}[action]
+            await call(bus, target, PATH, PLAYER, method)
             return {}
         results = await asyncio.gather(*(inspect(name) for name in names), return_exceptions=True)
         return choose_player([p for p in results if isinstance(p, dict)])

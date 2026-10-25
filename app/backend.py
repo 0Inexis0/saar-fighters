@@ -18,6 +18,8 @@ from dbus_next.service import ServiceInterface, method
 
 from hardware import friendly_error, security_mode, wifi_password_valid
 from media import media_request
+from brightness import brightness_request
+from audio import AudioRouter
 
 NM = "org.freedesktop.NetworkManager"
 NM_PATH = "/org/freedesktop/NetworkManager"
@@ -121,7 +123,7 @@ class Backend:
         self.agent_registered = False
         self.pairing_devices = set()
         self.discovery_owned = set()
-        self.locks = {key: asyncio.Lock() for key in ("wifi", "bt", "audio", "media")}
+        self.locks = {key: asyncio.Lock() for key in ("wifi", "bt", "audio", "media", "brightness")}
 
     async def call(self, service, path, interface, member, signature="", body=None, timeout=12):
         reply = await asyncio.wait_for(self.bus.call(Message(
@@ -327,16 +329,7 @@ class Backend:
         return out.decode()
 
     async def audio(self):
-        sinks = json.loads(await self.pactl("-f", "json", "list", "sinks"))
-        default = (await self.pactl("get-default-sink")).strip()
-        outputs = []
-        for sink in sinks:
-            volumes = [float(v["value_percent"].strip("%")) for v in sink.get("volume", {}).values()]
-            outputs.append({"id": str(sink["index"]), "name": sink["name"],
-                            "description": sink.get("description", sink["name"]),
-                            "default": sink["name"] == default, "mute": sink.get("mute", False),
-                            "volume": round(sum(volumes) / len(volumes)) if volumes else 0})
-        return {"outputs": outputs}
+        return await AudioRouter(self.pactl).status()
 
     async def status(self):
         values = await asyncio.gather(self.network(), self.bluetooth(), self.power(), return_exceptions=True)
@@ -352,8 +345,6 @@ class Backend:
             return await self.wifi(args.get("scan", False))
         if operation == "bluetooth":
             return await self.bluetooth()
-        if operation == "audio":
-            return await self.audio()
         if operation == "pairing_reply":
             pending = self.agent.pending.get(args.get("token"))
             if pending and not pending.done():
@@ -363,11 +354,20 @@ class Backend:
         if group not in self.locks:
             raise ValueError("Diese Aktion ist nicht verfügbar.")
         async with self.locks[group]:
-            if operation == "media_playpause":
+            if operation == "audio":
+                return await self.audio()
+            if operation == "brightness":
+                return await brightness_request()
+            if operation == "brightness_set":
+                target = args.get("id")
+                if not isinstance(target, str) or not target:
+                    raise ValueError("Bitte einen Bildschirm auswählen.")
+                return await brightness_request(target, args.get("value"))
+            if operation in ("media_playpause", "media_previous", "media_next"):
                 target = args.get("player")
                 if not isinstance(target, str) or not target.startswith("org.mpris.MediaPlayer2."):
                     raise ValueError("Bitte zuerst Musik oder ein Video öffnen.")
-                return await media_request(target)
+                return await media_request(target, operation.removeprefix("media_"))
             if operation == "audio_toggle":
                 await self.pactl("set-sink-mute", "@DEFAULT_SINK@", "toggle")
                 return {}
@@ -409,13 +409,9 @@ class Backend:
                 await self.pactl("set-sink-volume", "@DEFAULT_SINK@", f"{volume}%")
             elif operation == "audio_mute":
                 await self.pactl("set-sink-mute", "@DEFAULT_SINK@", "1" if args["muted"] else "0")
-            elif operation == "audio_output":
-                info = await self.audio()
-                if not any(s["id"] == args.get("id") for s in info["outputs"]):
-                    raise ValueError("Dieser Audioausgang ist nicht mehr verfügbar.")
-                await self.pactl("set-default-sink", args["id"])
-                for stream in json.loads(await self.pactl("-f", "json", "list", "sink-inputs")):
-                    await self.pactl("move-sink-input", str(stream["index"]), args["id"])
+            elif operation in ("audio_output", "audio_outputs"):
+                ids = [args.get("id")] if operation == "audio_output" else args.get("ids")
+                return await AudioRouter(self.pactl).select(ids)
             else:
                 raise ValueError("Diese Aktion ist nicht verfügbar.")
             return {"message": "Einstellung übernommen."}

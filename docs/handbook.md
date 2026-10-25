@@ -60,9 +60,11 @@ und den grafischen Installer verwenden: [Installation](installation.md).
   zählen reine Eingabepausen; bei Version 1 können Video-Apps den Start hemmen.
   In der Vorschau und unter X11 startet die Diashow nicht automatisch.
 
-- Play/Pause unten auf der Startseite steuert einen erreichbaren Medienplayer.
+- Der Musikplayer unten rechts neben den Einstellungen zeigt Titel, Interpret,
+  Player und Wiedergabestatus. Play/Pause sowie vorheriger und nächster Titel
+  steuern den angezeigten Medienplayer. Nicht unterstützte Aktionen sind deaktiviert.
   Laufende Wiedergabe hat Vorrang, bei Gleichstand Spotify. Ohne Player ist
-  der Knopf deaktiviert. Spotify und Browser mit MPRIS-Unterstützung werden erkannt.
+  die Steuerung deaktiviert. Spotify und Browser mit MPRIS-Unterstützung werden erkannt.
 - Stummschalten schaltet den aktuellen Audioausgang stumm; „Ton einschalten“
   hebt dies wieder auf. Der Status wird alle drei Sekunden aktualisiert.
 
@@ -94,10 +96,26 @@ und den grafischen Installer verwenden: [Installation](installation.md).
   starten maximiert. Die Taskleiste bleibt sichtbar; Dialoge behalten ihre
   normale Größe. Die Fenster lassen sich weiterhin verkleinern.
   Die Einrichtung greift beim Anmelden, auch nach Updates bestehender Rechner.
-- Einstellungen: zentrale Kachel für WLAN, Bluetooth, Lautstärke und Updates.
+- Einstellungen: zentrale Kachel für WLAN, Bluetooth, Lautstärke, Bildschirm und Updates.
   Die Auswahl öffnet die eigenen, einheitlich gestalteten Dialoge.
   WLAN auswählen und Passwort eingeben; Bluetooth suchen, koppeln und verbinden;
-  Audioausgang, Lautstärke und Stummschaltung einstellen.
+  Unter „Lautstärke & Boxen“ einen oder mehrere Audioausgänge ankreuzen und
+  „Auswahl übernehmen“ drücken. Laufende Wiedergabe und neue Wiedergabe laufen
+  dann über die ausgewählten Boxen gleichzeitig. Lautstärke und Stummschaltung
+  steuern die aktive Auswahl gemeinsam, auch über die Stummtaste der Startseite.
+  Für eine einzelne Box nur deren Häkchen stehen lassen und erneut übernehmen.
+  „Erneut laden“ aktualisiert die Liste nach dem Verbinden weiterer Geräte.
+  Die gemeinsame Ausgabe gilt für die aktuelle Audio-Sitzung; nach einem
+  Neustart des Rechners oder Audiodienstes die Boxen erneut auswählen.
+  Eigene Lautstärkeregler der Boxen bleiben wirksam. Je nach Verbindung,
+  insbesondere bei Bluetooth, kann der Ton zeitlich versetzt ankommen.
+  Unter „Bildschirm“ die Helligkeit von 0 bis 100 Prozent einstellen.
+  Bei mehreren unterstützten Bildschirmen lässt sich jeder einzeln auswählen.
+  Der Regler übernimmt Änderungen nach dem Loslassen, per Tastatur nach kurzer Pause.
+  Die Steuerung verwendet KDE PowerDevil ohne Administratorfreigabe. Nicht
+  unterstützte Bildschirme und Verbindungsfehler werden ausdrücklich angezeigt.
+  „Erneut laden“ liest die aktuellen Werte ein, auch nach Änderungen über die
+  Helligkeitstasten. Die Vorschau verändert nur Beispieldaten.
 - Statusleiste: Netzwerkverbindung, verbundene Bluetooth-Geräte, Netzteil und
   Akku mit Prozentwert und Ladezustand. Fehlende Hardware und unbekannte Werte
   werden ausdrücklich angezeigt. Details erscheinen beim Darüberfahren.
