@@ -7,6 +7,7 @@ import secrets
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -26,7 +27,9 @@ def main():
     spec = importlib.util.spec_from_file_location("ssh_setup", PROJECT / "system/configure_ssh.py")
     setup = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(setup)
-    with tempfile.TemporaryDirectory(prefix="saar-ssh-test-") as temporary:
+    # StrictModes checks every ancestor of AuthorizedKeysFile, so a world-writable
+    # /tmp parent is intentionally unsuitable even for this temporary test.
+    with tempfile.TemporaryDirectory(prefix="saar-ssh-test-", dir="/var/lib") as temporary:
         root = Path(temporary)
         root.chmod(0o755)
         source = root / "opt/saar-fighters/system"
@@ -111,6 +114,8 @@ def main():
                 sudoers.unlink(missing_ok=True)
             print("PASS: actual key login; wrong key, root, disallowed source, password-only and forwarding rejected; narrow sudo checked.")
         finally:
+            if sys.exc_info()[0] is not None and (root / "server.log").exists():
+                print((root / "server.log").read_text()[-12000:])
             if server is not None:
                 server.terminate()
                 server.wait(timeout=10)
