@@ -74,6 +74,18 @@ class RecoveryTests(unittest.TestCase):
         self.assertFalse((self.project / ".surface-restored.json").exists())
         self.assertFalse(list(self.root.rglob("*.saar-restore-*")))
 
+    def test_legacy_restore_keeps_rescue_ui_during_later_ssh_setup(self):
+        maintenance.install_tools(self.root)
+        rescue = self.root / "usr/local/libexec/saar-maintenance-ui.py"
+        saved = rescue.read_bytes()
+        (self.backup / "app/maintenance.py").unlink()
+        old_main = self.backup / "app/main.py"
+        old_main.write_text(old_main.read_text(encoding="utf-8").replace("from maintenance import MaintenancePage", ""), encoding="utf-8")
+        maintenance.restore_surface(self.root)
+        self.assertFalse((self.project / "app/maintenance.py").exists())
+        maintenance.install_tools(self.root)
+        self.assertEqual(rescue.read_bytes(), saved)
+
     def test_corrupt_backup_and_interrupted_update_block_restore(self):
         (self.backup / "app/main.py").write_text("def broken(")
         self.assertFalse(maintenance.refresh(self.root)["available"])

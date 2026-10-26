@@ -120,7 +120,8 @@ def refresh(root=Path("/")):
     project = root / "opt/saar-fighters"
     backup = state / "previous"
     restored = read_json(project / ".surface-restored.json")
-    backup_version = read_json(backup / ".surface-restored.json").get("revision", revision(backup))
+    backup_version = (read_json(backup / ".surface-restored.json").get("revision", revision(backup))
+                      if backup.exists() else "Keine")
     data = {"current": restored.get("revision", revision(project)), "previous": backup_version,
             "available": False, "reason": "Noch keine Sicherung vorhanden.",
             "restored_at": restored.get("at")}
@@ -147,6 +148,11 @@ def refresh(root=Path("/")):
 def install_tools(root=Path("/")):
     project = root / "opt/saar-fighters"
     for source, destination, mode in TOOLS:
+        # A restored old app may not include this UI at all. Keep the current
+        # independent rescue UI instead of downgrading or losing it on SSH setup.
+        if (source == "app/maintenance.py" and (project / ".surface-restored.json").exists()
+                and (root / destination).is_file()):
+            continue
         atomic_write(root / destination, (project / source).read_bytes(), mode)
     return refresh(root)
 
