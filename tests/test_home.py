@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
-from main import AppsDialog, Home, SettingsDialog, STYLE, UpdateDialog
+from main import Home, SettingsDialog, STYLE, UpdateDialog
 from devices import AudioSheet, BluetoothSheet, BrightnessSheet, WifiSheet
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtTest import QTest
@@ -309,16 +309,17 @@ class HomeTests(unittest.TestCase):
 
     def test_rocket_tile_launches_local_helper_without_admin_rights(self):
         self.home.preview = False
-        dialog = AppsDialog(self.home)
+        self.home.show_apps()
+        dialog = self.home.apps_page
         dialog.search.setText("Rocket Launch")
         with patch("main.shutil.which", return_value="python"), patch.object(QProcess, "start") as start:
             QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
             self.assertEqual(start.call_args.args, (sys.executable,
                 [str(Path(__file__).resolve().parents[1] / "app/rocket.py")]))
+            self.home.show_apps()
             QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
             self.assertEqual(start.call_count, 1)
         self.home.preview = True
-        dialog.deleteLater()
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
+    QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget,
 )
 from applications import Application, SHORTCUTS, application_catalog
 from devices import AudioSheet, BluetoothSheet, BrightnessSheet, DeviceClient, WifiSheet, label
@@ -187,7 +187,7 @@ class MusicTile(QFrame):
         self.expand = expand
         self.setObjectName("musicTile")
         self.setAccessibleName("Musikplayer")
-        self.setMinimumSize(150, 160)
+        self.setMinimumSize(220, 220)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -204,9 +204,10 @@ class MusicTile(QFrame):
         heading.addStretch()
         self.expand_button = QPushButton()
         self.expand_button.setObjectName("musicControl")
-        self.expand_button.setFixedSize(30, 30)
-        self.expand_button.setStyleSheet("min-height: 30px; max-height: 30px;")
-        self.expand_button.setIcon(icon("expand", "#c3b48b", 16))
+        self.expand_button.setFixedSize(44, 44)
+        self.expand_button.setStyleSheet("min-height: 44px; max-height: 44px;")
+        self.expand_button.setIcon(icon("expand", "#c3b48b", 24))
+        self.expand_button.setIconSize(QSize(24, 24))
         self.expand_button.setAccessibleName("Musikplayer aufklappen")
         self.expand_button.setToolTip("Großer Player mit Lyrics")
         self.expand_button.clicked.connect(expand)
@@ -226,18 +227,19 @@ class MusicTile(QFrame):
         self.source.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.source)
         controls = QHBoxLayout()
-        controls.setSpacing(4)
+        controls.setSpacing(8)
         controls.addStretch()
         self.buttons = {}
         for name, title in (("previous", "Vorheriger Titel"), ("playpause", "Play"),
                             ("next", "Nächster Titel")):
             button = QPushButton()
             button.setObjectName("musicPlay" if name == "playpause" else "musicControl")
-            button.setFixedSize(44 if name == "playpause" else 32, 36)
-            button.setStyleSheet("min-height: 36px; max-height: 36px;")
+            size = 64 if name == "playpause" else 56
+            button.setFixedSize(size, size)
+            button.setStyleSheet(f"min-height: {size}px; max-height: {size}px; border-radius: {size // 2}px;")
             button.setIcon(icon("play" if name == "playpause" else name,
-                                "#24261b" if name == "playpause" else "#eeece1", 18))
-            button.setIconSize(QSize(18, 18))
+                                "#24261b" if name == "playpause" else "#eeece1", 32))
+            button.setIconSize(QSize(32, 32))
             button.setAccessibleName(title)
             button.setToolTip(title)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -264,7 +266,7 @@ class MusicTile(QFrame):
         play = self.buttons["playpause"]
         play.setAccessibleName("Pause" if playing else "Play")
         play.setToolTip("Pause" if playing else "Play")
-        play.setIcon(icon("pause" if playing else "play", "#24261b", 18))
+        play.setIcon(icon("pause" if playing else "play", "#24261b", 32))
         for name, capability in (("playpause", "available"), ("previous", "can_previous"),
                                  ("next", "can_next")):
             self.buttons[name].setEnabled(not error and bool(data.get(capability)))
@@ -392,10 +394,10 @@ class AppTile(QPushButton):
         if app_icon.isNull():
             app_icon = button_icon("apps")
         image = QLabel()
-        image.setPixmap(app_icon.pixmap(QSize(48, 48)))
+        image.setPixmap(app_icon.pixmap(QSize(64, 64)))
         image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(image)
-        for text, style in ((application.title, "font-size: 17px; font-weight: 700;"),
+        for text, style in ((application.title, "font-size: 20px; font-weight: 700;"),
                             (application.description or "Anwendung öffnen", "font-size: 12px; color: #b7b6a6;")):
             value = StatusValue()
             value.setTextFormat(Qt.TextFormat.PlainText)
@@ -409,27 +411,26 @@ class AppTile(QPushButton):
         self.clicked.connect(action)
 
 
-class AppsDialog(QDialog):
+class AppsPage(QWidget):
     def __init__(self, home):
         super().__init__(home)
         self.home = home
-        self.setWindowTitle("Apps")
-        self.resize(min(home.width() - 32, 1200), min(home.height() - 24, 720))
+        self.setObjectName("appsPage")
         self.page = 0
-        self.columns = 3 if self.width() < 900 else 4
+        self.columns = 3
         self.applications = []
         self.filtered = []
         self.tiles = {}
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
+        layout.setContentsMargins(32, 24, 32, 24)
+        layout.setSpacing(20)
         header = QHBoxLayout()
         header.addWidget(label("Apps", "font-size: 28px; font-weight: 700;"))
         self.count_label = label("", "color: #b7b6a6;")
         header.addWidget(self.count_label)
         header.addStretch()
         self.back_button = QPushButton("Zurück zur Startseite")
-        self.back_button.clicked.connect(self.reject)
+        self.back_button.clicked.connect(home.show_dashboard)
         header.addWidget(self.back_button)
         layout.addLayout(header)
         search_row = QHBoxLayout()
@@ -439,9 +440,6 @@ class AppsDialog(QDialog):
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.filter_apps)
         search_row.addWidget(self.search, 1)
-        self.refresh_button = QPushButton("Neu laden")
-        self.refresh_button.clicked.connect(self.reload_apps)
-        search_row.addWidget(self.refresh_button)
         layout.addLayout(search_row)
         self.grid = QGridLayout()
         self.grid.setSpacing(14)
@@ -453,7 +451,9 @@ class AppsDialog(QDialog):
         self.feedback.setWordWrap(True)
         self.feedback.hide()
         layout.addWidget(self.feedback)
-        navigation = QHBoxLayout()
+        self.navigation = QWidget()
+        navigation = QHBoxLayout(self.navigation)
+        navigation.setContentsMargins(0, 0, 0, 0)
         self.previous_button = QPushButton("Vorherige Seite")
         self.next_button = QPushButton("Nächste Seite")
         self.previous_button.clicked.connect(lambda: self.change_page(-1))
@@ -463,7 +463,7 @@ class AppsDialog(QDialog):
         navigation.addWidget(self.previous_button)
         navigation.addWidget(self.page_label, 1)
         navigation.addWidget(self.next_button)
-        layout.addLayout(navigation)
+        layout.addWidget(self.navigation)
         self.reload_apps()
         self.search.setFocus()
         for button in self.findChildren(QPushButton):
@@ -518,22 +518,14 @@ class AppsDialog(QDialog):
         self.page_label.setText(f"Seite {self.page + 1} von {self.page_count}" if self.filtered else "Keine Treffer")
         self.previous_button.setEnabled(self.page > 0)
         self.next_button.setEnabled(self.page + 1 < self.page_count)
+        self.navigation.setVisible(self.page_count > 1)
 
     def open_app(self, application):
         if self.home.launch_application(application):
-            self.accept()
+            self.home.show_dashboard()
         else:
             self.feedback.setText(self.home.feedback.text())
             self.feedback.setVisible(bool(self.feedback.text()))
-
-    def resizeEvent(self, event):
-        columns = 3 if self.width() < 900 else 4
-        if columns != self.columns:
-            first = self.page * self.page_size
-            self.columns = columns
-            self.page = first // self.page_size
-            self.show_page()
-        super().resizeEvent(event)
 
 
 class SettingsDialog(QDialog):
@@ -677,10 +669,21 @@ class Home(QWidget):
         self.background = QSvgRenderer(str(ASSETS / "terrain.svg"))
         self.processes = []
         self.last_action = None
-        layout = QVBoxLayout(self)
+        shell = QVBoxLayout(self)
+        shell.setContentsMargins(0, 0, 0, 0)
+        shell.setSpacing(0)
+        self.page_area = QWidget()
+        self.pages = QStackedLayout(self.page_area)
+        self.pages.setContentsMargins(0, 0, 0, 0)
+        self.dashboard = QWidget()
+        self.pages.addWidget(self.dashboard)
+        self.apps_page = None
+        layout = QVBoxLayout(self.dashboard)
         layout.setContentsMargins(48, 24, 48, 22)
         layout.setSpacing(10)
-        header = QHBoxLayout()
+        self.status_header = QWidget()
+        header = QHBoxLayout(self.status_header)
+        header.setContentsMargins(24, 12, 24, 0)
         logo = QLabel()
         logo.setPixmap(QPixmap(str(ASSETS / "club-logo.gif")).scaled(
             56, 56, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
@@ -717,7 +720,8 @@ class Home(QWidget):
             status_row.addWidget(frame, 1)
             self.status_values.append(value)
         header.addLayout(status_row, 1)
-        layout.addLayout(header)
+        shell.addWidget(self.status_header)
+        shell.addWidget(self.page_area, 1)
         self.network = self.status_values[0]
         self.device_client.status_changed.connect(self.update_status)
         QTimer.singleShot(800, self.device_client.refresh_status)
@@ -846,7 +850,9 @@ class Home(QWidget):
         self.device_client.request(operation, args, finished)
 
     def resizeEvent(self, event):
-        self.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12, 24 if self.width() < 1000 else 40, 14)
+        self.status_header.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12,
+                                                       24 if self.width() < 1000 else 40, 0)
+        self.dashboard.layout().setContentsMargins(24 if self.width() < 1000 else 40, 12, 24 if self.width() < 1000 else 40, 14)
         compact = self.width() < 1000 or self.height() < 650
         inset_x, inset_y = (8, 14) if compact else (24, 36)
         self.tile_grid.setContentsMargins(inset_x, inset_y, inset_x, inset_y)
@@ -901,20 +907,7 @@ class Home(QWidget):
         return self.start_application(command, action)
 
     def launch_application(self, application: Application):
-        if application.action:
-            return self.launch(application.action)
-        self.last_action = application.id
-        if self.preview:
-            self.set_feedback(f"Vorschau: „{application.title}“ gewählt. Es wird keine App gestartet.")
-            return False
-        if not application.desktop_file or not application.desktop_file.is_file():
-            self.set_feedback("Diese App ist nicht mehr vorhanden. Bitte die Apps neu laden.")
-            return False
-        if not shutil.which("kioclient"):
-            self.set_feedback("Die App-Startverwaltung fehlt. Bitte die Vereinsadministration kontaktieren.")
-            return False
-        # KDE handles Exec field codes, working directories, terminals and D-Bus.
-        return self.start_application(["kioclient", "exec", application.desktop_file.as_uri()], application.id)
+        return self.launch(application.action)
 
     def start_application(self, command, action):
         if not shutil.which(command[0]):
@@ -949,7 +942,8 @@ class Home(QWidget):
             dialog.deleteLater()
             self.music_tile.expand_button.setFocus()
         dialog.finished.connect(closed)
-        dialog.open()
+        dialog.setScreen(self.screen())
+        dialog.showFullScreen()
 
     def show_settings(self):
         dialog = SettingsDialog(self)
@@ -957,9 +951,22 @@ class Home(QWidget):
         dialog.deleteLater()
 
     def show_apps(self):
-        dialog = AppsDialog(self)
-        dialog.exec()
-        dialog.deleteLater()
+        if self.apps_page is None:
+            self.apps_page = AppsPage(self)
+            self.pages.addWidget(self.apps_page)
+        self.pages.setCurrentWidget(self.apps_page)
+        self.apps_page.search.setFocus()
+
+    def show_dashboard(self):
+        self.pages.setCurrentWidget(self.dashboard)
+        self.tiles["apps"].setFocus()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape and self.pages.currentWidget() is self.apps_page:
+            self.show_dashboard()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
 
     def open_device(self, action, parent=None):
         sheet = {"wifi": WifiSheet, "bluetooth": BluetoothSheet, "sound": AudioSheet,
@@ -1007,6 +1014,9 @@ class Home(QWidget):
         process.start("systemctl", [action])
 
     def reveal(self):
+        self.show_dashboard()
+        if self.music_dialog:
+            self.music_dialog.reject()
         self.showMaximized()
         self.raise_()
         self.activateWindow()

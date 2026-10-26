@@ -50,19 +50,15 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 
 ## Bedienung
 
-- Die Startseite bündelt alle Anwendungen in der Kachel „Apps“. Einstellungen
-  und Musikplayer bleiben direkt erreichbar. Die Apps-Übersicht enthält die
-  bisherigen Verknüpfungen sowie alle sichtbaren installierten Desktop-Apps,
-  einschließlich systemweiter und persönlicher Flatpak-Installationen.
-  Je nach Fensterbreite passen sechs oder acht Kacheln auf eine Seite.
-  „Vorherige Seite“ und „Nächste Seite“ blättern durch die gesamte Liste.
-  Die Suche findet Apps auf allen Seiten; „Neu laden“ erkennt neue oder
-  entfernte Installationen. Beim erneuten Öffnen wird die Liste ebenfalls neu
-  eingelesen. „Zurück zur Startseite“ oder Escape schließt die Übersicht.
-- Die App-Erkennung berücksichtigt deutsche Namen, Benutzerüberschreibungen,
-  ausgeblendete Einträge und die Desktop-Umgebung. Installierte Programme
-  starten über KDEs `kioclient` aus dem Paket `kde-cli-tools`, das zur
-  Plasma-Installation gehört. Die Oberfläche zerlegt keine fremden `Exec`-Zeilen.
+- Die Kachel „Apps“ wechselt direkt auf eine Seite innerhalb des Dashboards.
+  Sie nutzt die Dashboard-Fläche unter der dauerhaft sichtbaren Statusleiste
+  ohne zusätzliches Fenster. Netzwerk, Bluetooth, Netzteil und Akku bleiben
+  auch in der Apps-Ansicht sichtbar. Dort stehen genau
+  die sechs ursprünglichen Verknüpfungen: Rocket Launch, Spotify, Internet,
+  YouTube, Dateien und Vereinswebseite. Systemprogramme werden nicht ergänzt.
+  Pro Seite passen sechs Kacheln; bei weiteren konfigurierten Verknüpfungen
+  erscheinen Vor- und Zurück-Tasten. Die Suche gilt für alle Seiten.
+  „Zurück zur Startseite“ oder Escape bringt die Startkacheln wieder zurück.
 
 - Nach fünf Minuten ohne Eingabe startet auf dem Plasma-Wayland-Desktop eine
   bildschirmfüllende Airsoft-Diashow. Drei lokal gespeicherte Bilder wechseln
@@ -77,7 +73,9 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 - Der Musikplayer rechts neben den Einstellungen zeigt Titel, Interpret,
   Player und Wiedergabestatus. Das Cover oder Video-Vorschaubild füllt die gesamte
   Kachel; Titel und Steuerung liegen auf einem dunklen Verlauf darüber. Ein Klick
-  auf das Bild oder den Aufklappknopf öffnet den großen Player. „Einklappen“ oder
+  auf das Bild oder den Aufklappknopf öffnet den Player im Vollbild auf demselben
+  Bildschirm. Die Steuerung in der kleinen Kachel bietet 56 Pixel große
+  Vor-/Zurück-Tasten und eine 64 Pixel große Play-/Pause-Taste. „Einklappen“ oder
   Escape kehrt zurück, ohne die Wiedergabe zu unterbrechen.
   Der große Player zeigt Cover, Zeitleiste, Lautstärke, Zufallswiedergabe,
   Wiederholung und Lyrics. Play/Pause sowie vorheriger und nächster Titel
@@ -100,7 +98,7 @@ und den grafischen Installer verwenden: [Installation](installation.md).
 - Stummschalten schaltet den aktuellen Audioausgang stumm; „Ton einschalten“
   hebt dies wieder auf. Der Status wird alle drei Sekunden aktualisiert.
 
-- Spotify in der Apps-Übersicht: installierte App, sonst Spotify im Browser.
+- Spotify in der Apps-Übersicht: systemweit installierte Flatpak-App, sonst Spotify im Browser.
 - Internet: Firefox.
 - Rocket Launch: startet die mitgelieferte Airsoft-Spielkonsole in Firefox.
   Der lokale Python-Server startet bei Bedarf auf `127.0.0.1:18741`, ohne
