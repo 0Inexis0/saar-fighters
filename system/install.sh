@@ -135,3 +135,4 @@ if [[ ${1:-} != --image ]]; then
     flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 fi
 echo "Saar-Fighters shell installed."
+/usr/bin/python -I "$root/system/maintenance.py" install

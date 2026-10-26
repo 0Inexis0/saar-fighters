@@ -15,4 +15,4 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: sudo --preserve-env=GITHUB_ACTIONS python3 scripts/check-ssh-linux.py
       - run: python app/main.py --screenshot build/preview.png --size 1024x600
-      - run: bash -n system/setup-arch.sh system/bootstrap.sh system/install.sh system/first-login.sh system/saar-update iso/build.sh iso/configure-live.sh installer/saar-install
+      - run: bash -n system/setup-arch.sh system/bootstrap.sh system/install.sh system/first-login.sh system/saar-update system/saar-maintenance iso/build.sh iso/configure-live.sh installer/saar-install

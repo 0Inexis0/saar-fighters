@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Saar-Fighters Wartung
+Comment=Vorherige Oberfläche wiederherstellen und Fernwartung verwalten
+Exec=/usr/bin/python -I /usr/local/libexec/saar-maintenance-ui.py
+Icon=preferences-system
+Terminal=false
+Categories=System;

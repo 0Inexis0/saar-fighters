@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Saar-Fighters AV</vendor>
+  <action id="de.saarfighters.maintenance">
+    <description>Saar-Fighters Fernwartung oder Wiederherstellung</description>
+    <message>Für diese Änderung wird das Passwort des Wartungskontos benötigt.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/libexec/saar-maintenance</annotate>
+  </action>
+</policyconfig>

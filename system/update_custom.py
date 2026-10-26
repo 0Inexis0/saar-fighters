@@ -5,6 +5,7 @@ The entry point is root-only. Functions accept a filesystem root for isolated
 transaction tests; the command line never accepts paths, repositories or refs.
 """
 import ast
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,8 @@ INTEGRATIONS = (
     ("system/desktoptheme/saar-olive", "usr/share/plasma/desktoptheme/saar-olive", None),
 )
 REQUIRED = (
+    "app/maintenance.py", "system/maintenance.py", "system/saar-maintenance",
+    "system/de.saarfighters.maintenance.policy", "system/de.saarfighters.Maintenance.desktop",
     "system/configure_ssh.py", "system/diagnose_firefox.py",
     "system/ssh/sshd_config", "system/ssh/saar-sshd.service", "system/ssh/support_ed25519.pub",
     "app/rocket.py", "app/rocket-launch/index.html", "app/rocket-launch/config.json",
@@ -93,7 +96,7 @@ def validate_checkout(checkout):
                 json.loads(path.read_text())
             elif path.suffix in (".svg", ".policy"):
                 ET.parse(path)
-            elif path.suffix == ".sh" or path.name in ("saar-update", "saar-install"):
+            elif path.suffix == ".sh" or path.name in ("saar-update", "saar-install", "saar-maintenance"):
                 subprocess.run(["bash", "-n", str(path)], check=True, timeout=10)
 
 
@@ -127,7 +130,8 @@ def install_checkout(checkout, revision, root=Path("/")):
     if not project.is_dir() or project.is_symlink():
         raise RuntimeError("Installierte Vereinsoberfläche fehlt oder ist kein Verzeichnis")
     version_file = project / ".revision"
-    if version_file.is_file() and version_file.read_text().strip() == revision:
+    if (version_file.is_file() and version_file.read_text().strip() == revision
+            and not (project / ".surface-restored.json").exists()):
         return False
     with tempfile.TemporaryDirectory(prefix="prepare-", dir=state) as temp:
         payload = Path(temp) / "project"
@@ -154,6 +158,10 @@ def install_checkout(checkout, revision, root=Path("/")):
             # Reserve space for the retained backup before changing the system.
             previous_new = Path(temp) / "previous"
             shutil.copytree(project, previous_new)
+            manifest = {p.relative_to(previous_new).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                        for p in previous_new.rglob("*") if p.is_file()
+                        and "__pycache__" not in p.parts and p.name != ".surface-manifest.json"}
+            (previous_new / ".surface-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             journal = state / "recovery.json"
             journal.write_text(json.dumps([[str(p) if isinstance(p, Path) else p for p in row]
                                            for row in records], indent=2))

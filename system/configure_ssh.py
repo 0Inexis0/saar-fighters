@@ -137,6 +137,9 @@ def main():
     if sys.argv[1:] or os.geteuid() != 0:
         raise SystemExit("Nur über den System-Update-Knopf starten.")
     try:
+        # This hook also runs from the already installed SSH updater on its first
+        # update, before that older updater knows about the new maintenance tools.
+        subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/maintenance.py", "install"], check=True)
         configure()
     except Exception as error:
         print(f"SSH-Einrichtung fehlgeschlagen: {error}", file=sys.stderr)

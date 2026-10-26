@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH=/usr/bin:/bin
+case "${1:-}" in
+    status) [[ $# == 1 ]] || exit 1; exec /usr/bin/python -I /usr/local/libexec/saar-maintenance-admin.py status ;;
+    restore) [[ $# == 2 && $2 =~ ^[0-9a-f]{64}$ ]] || exit 1 ;;
+    enable-ssh|disable-ssh) [[ $# == 1 ]] || exit 1 ;;
+    *) echo 'Unzulässige Wartungsaktion'; exit 1 ;;
+esac
+[[ $EUID == 0 ]] || { echo 'Wartungspasswort erforderlich'; exit 1; }
+exec 9>/run/saar-fighters-update.lock
+flock -n 9 || { echo 'Ein Update oder eine Wartung läuft bereits.'; exit 1; }
+exec systemd-inhibit --what=shutdown:sleep --mode=block --who='Saar-Fighters Wartung' \
+    --why='Wartung läuft' /usr/bin/python -I /usr/local/libexec/saar-maintenance-admin.py "$@"

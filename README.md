@@ -35,6 +35,10 @@ auf Port 2222, ausschließlich mit dem hinterlegten SSH-Schlüssel des Betreiber
 Bei Übernahme für eigene Rechner diesen öffentlichen Schlüssel ersetzen.
 [Einrichtung, Diagnose und Abschalten](docs/ssh-access.md).
 
+**Wartung in den Einstellungen:** SSH-Status und lokale Adressen anzeigen,
+Fernwartung ein- oder ausschalten und die vorherige Oberfläche wiederherstellen.
+[Bedienung und Wiederherstellung](docs/maintenance.md).
+
 > **ISO:** x86_64 · 4 GB RAM · 32 GB Laufwerk · USB ab 8 GB · Secure Boot aus. Der grafische Installer löscht das ausgewählte Ziellaufwerk.
 
 ---

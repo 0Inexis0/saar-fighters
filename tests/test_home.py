@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 from main import Home, SettingsDialog, STYLE, UpdateDialog
+from maintenance import MaintenancePage
 from devices import AudioSheet, BluetoothSheet, BrightnessSheet, WifiSheet
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtTest import QTest
@@ -104,6 +105,24 @@ class HomeTests(unittest.TestCase):
                 self.assertTrue(dialog.rect().contains(dialog.content.geometry()))
             dialog.close()
             dialog.deleteLater()
+
+    def test_maintenance_sections_block_navigation_during_changes(self):
+        dialog = SettingsDialog(self.home)
+        dialog.show()
+        self.app.processEvents()
+        for section in ("remote", "recovery"):
+            dialog.select_section(section)
+            self.assertIsInstance(dialog.page, MaintenancePage)
+            page = dialog.page
+            page.working(True)
+            self.assertFalse(dialog.back_button.isEnabled())
+            dialog.select_section("wifi")
+            dialog.reject()
+            self.assertIs(dialog.page, page)
+            self.assertTrue(dialog.isVisible())
+            page.working(False)
+        dialog.reject()
+        dialog.deleteLater()
 
     def test_settings_wait_for_volume_and_brightness_changes(self):
         dialog = SettingsDialog(self.home)

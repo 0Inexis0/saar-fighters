@@ -45,6 +45,10 @@ Andere Administratorbefehle benötigen weiterhin das Wartungspasswort.
 
 ## Geltungsbereich und Abschalten
 
+In **Einstellungen → Fernwartung** werden Status und IP-Adressen angezeigt.
+Die Fernwartung lässt sich dort mit Wartungspasswort ein- und ausschalten.
+[Wiederherstellung und separate Wartungsoberfläche](maintenance.md).
+
 - Zugelassen sind IPv4-Quellen aus `10.0.0.0/8`, `172.16.0.0/12`,
   `192.168.0.0/16` und localhost. IPv6 ist für diesen Dienst deaktiviert.
 - Es werden keine Routerfreigaben, Cloud-Tunnel oder VPN-Konten eingerichtet.

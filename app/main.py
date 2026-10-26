@@ -20,6 +20,7 @@ from hardware import status_labels
 from slideshow import IdleSlideshow
 from media_content import ArtworkLoader
 from music_player import ArtworkView, MusicPlayerDialog
+from maintenance import MaintenancePage
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "assets"
@@ -543,12 +544,12 @@ class SettingsDialog(QDialog):
         layout.setSpacing(0)
         self.sidebar = QFrame()
         self.sidebar.setObjectName("settingsSidebar")
-        self.sidebar.setFixedWidth(188)
+        self.sidebar.setFixedWidth(220)
         navigation = QVBoxLayout(self.sidebar)
         navigation.setContentsMargins(16, 24, 16, 16)
-        navigation.setSpacing(8)
+        navigation.setSpacing(6)
         navigation.addWidget(label("Einstellungen", "font-size: 21px; font-weight: 700;"))
-        navigation.addSpacing(20)
+        navigation.addSpacing(12)
         self.nav_buttons = {}
         for symbol, title, action in (
             ("wifi", "WLAN", "wifi"),
@@ -556,6 +557,8 @@ class SettingsDialog(QDialog):
             ("sound", "Lautstärke", "sound"),
             ("brightness", "Bildschirm", "brightness"),
             ("update", "Updates", "updates"),
+            ("settings", "Fernwartung", "remote"),
+            ("restart", "Wiederherstellen", "recovery"),
         ):
             button = QPushButton(title)
             button.setObjectName("settingsNav")
@@ -629,6 +632,8 @@ class SettingsDialog(QDialog):
             if self.update_page is None:
                 self.update_page = UpdateDialog(self, self.home.preview)
             self.page = self.update_page
+        elif section in ("remote", "recovery"):
+            self.page = MaintenancePage(self, self.home.preview, section)
         else:
             self.page = {"wifi": WifiSheet, "bluetooth": BluetoothSheet,
                          "sound": AudioSheet, "brightness": BrightnessSheet}[section](
