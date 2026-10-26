@@ -1,4 +1,6 @@
 import importlib.util
+import os
+import sys
 import json
 from pathlib import Path
 import shutil
@@ -132,6 +134,17 @@ class RecoveryTests(unittest.TestCase):
         state = maintenance.status(self.root, run)
         self.assertEqual(state["ssh"]["state"], "failed")
         self.assertEqual(state["ssh"]["addresses"], ["192.168.1.5"])
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX permissions")
+    def test_status_readable_with_restrictive_admin_umask(self):
+        old = os.umask(0o077)
+        try:
+            maintenance.refresh(self.root)
+        finally:
+            os.umask(old)
+        directory = self.root / "var/lib/saar-fighters"
+        self.assertEqual(directory.stat().st_mode & 0o777, 0o755)
+        self.assertEqual((directory / "surface-status.json").stat().st_mode & 0o777, 0o644)
 
 
 if __name__ == "__main__":

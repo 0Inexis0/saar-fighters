@@ -135,7 +135,12 @@ def refresh(root=Path("/")):
     except (OSError, ValueError, SyntaxError, RuntimeError, ET.ParseError):
         if backup.exists():
             data["reason"] = "Die vorhandene Sicherung ist unvollständig oder beschädigt."
-    atomic_write(root / "var/lib/saar-fighters/surface-status.json", json.dumps(data, ensure_ascii=False).encode())
+    public = root / "var/lib/saar-fighters"
+    if public.is_symlink():
+        raise RuntimeError("Ungültiges Statusverzeichnis")
+    public.mkdir(parents=True, exist_ok=True, mode=0o755)
+    public.chmod(0o755)
+    atomic_write(public / "surface-status.json", json.dumps(data, ensure_ascii=False).encode())
     return data
 
 

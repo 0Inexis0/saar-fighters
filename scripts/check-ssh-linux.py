@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real OpenSSH acceptance test. Run as root only on an ephemeral CI runner."""
 import importlib.util
+import fcntl
 import os
 from pathlib import Path
 import secrets
@@ -113,6 +114,14 @@ def main():
             finally:
                 sudoers.unlink(missing_ok=True)
             print("PASS: actual key login; wrong key, root, disallowed source, password-only and forwarding rejected; narrow sudo checked.")
+            helper = PROJECT / "system/saar-maintenance"
+            for arguments in ([], ["unknown"], ["restore", "../backup"], ["enable-ssh", "extra"], ["status", "extra"]):
+                assert run("bash", str(helper), *arguments, check=False).returncode != 0
+            with Path("/run/saar-fighters-update.lock").open("w") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                blocked = run("bash", str(helper), "disable-ssh", check=False)
+                assert blocked.returncode != 0 and "Wartung" in blocked.stdout
+            print("PASS: maintenance rejects extra arguments and respects the system-update lock before mutation.")
         finally:
             if sys.exc_info()[0] is not None and (root / "server.log").exists():
                 print((root / "server.log").read_text()[-12000:])
