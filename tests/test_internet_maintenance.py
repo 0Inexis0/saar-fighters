@@ -46,6 +46,13 @@ class InternetMaintenanceTests(unittest.TestCase):
                     "https://login.tailscale.com/admin"):
             self.assertEqual(maintenance.internet_status(self.root, self.result({"AuthURL": url}))["auth_url"], "")
 
+    def test_first_login_with_null_ips_keeps_login_button_available(self):
+        result = maintenance.internet_status(self.root, self.result({
+            "BackendState": "NeedsLogin", "TailscaleIPs": None,
+            "AuthURL": "https://login.tailscale.com/a/example"}))
+        self.assertEqual(result, {"state": "NeedsLogin", "addresses": [],
+                                  "auth_url": "https://login.tailscale.com/a/example"})
+
     def test_daemon_failure_and_missing_package_have_distinct_states(self):
         with patch.object(maintenance, "command", side_effect=FileNotFoundError):
             result = maintenance.internet_status(self.root, lambda args: (_ for _ in ()).throw(FileNotFoundError()))

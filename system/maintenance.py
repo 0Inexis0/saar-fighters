@@ -245,7 +245,7 @@ def internet_status(root=Path("/"), run=command):
         response = run(["tailscale", "status", "--json"])
         data = json.loads(response.stdout or "{}")
         result["state"] = data.get("BackendState", "unavailable")
-        for value in data.get("TailscaleIPs", []):
+        for value in data.get("TailscaleIPs") or []:
             address = ipaddress.ip_address(value)
             if address in ipaddress.ip_network("100.64.0.0/10"):
                 result["addresses"].append(str(address))
