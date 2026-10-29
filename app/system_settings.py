@@ -4,8 +4,8 @@ from pathlib import Path
 import shutil
 import sys
 from PySide6.QtCore import QProcess, QTimer
-from PySide6.QtWidgets import QPushButton, QComboBox, QPlainTextEdit
-from devices import Sheet, BrightnessSheet, label
+from PySide6.QtWidgets import QPushButton, QPlainTextEdit, QHBoxLayout
+from devices import Sheet, BrightnessSheet, SettingsChoice, label
 from system_status import snapshot, gib
 
 MODULES = {"display": "kcm_kscreen", "energy": "kcm_powerdevilprofilesconfig"}
@@ -38,19 +38,25 @@ class EnergySheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "Energie", "Das gewählte Profil bleibt auch nach Anmeldung und Updates erhalten.")
         self.center = parent.home.notifications
-        self.profile = QComboBox()
-        for title, key in (("Vereinsbetrieb", "club"), ("Laptopbetrieb", "laptop"), ("Eigene Einstellungen", "custom")):
-            self.profile.addItem(title, key)
+        self.profile = SettingsChoice([
+            ("Vereinsbetrieb", "club", "Bildschirm bleibt an. Kein automatischer Standby."),
+            ("Laptopbetrieb", "laptop", "Nach 2 Min. abdunkeln, nach 5 Min. Bildschirm aus, nach 15 Min. Standby. Am Netzteil und am Akku."),
+            ("Eigene Einstellungen", "custom", "Zeiten und Verhalten selbst in den Energieeinstellungen festlegen."),
+        ])
+        self.profile.setAccessibleName("Energieprofil")
         try:
             key = json.loads((Path.home() / ".config/saar-fighters/energy.json").read_text()).get("profile", "club") if not client.preview else "club"
         except (OSError, ValueError, AttributeError):
             key = "club"
         self.profile.setCurrentIndex(max(0, self.profile.findData(key)))
         self.body.addWidget(self.profile)
-        self.body.addWidget(label("Vereinsbetrieb: Bildschirm bleibt an, kein automatischer Standby.\n\nLaptopbetrieb: nach 2 Minuten abdunkeln, nach 5 Minuten Bildschirm aus, nach 15 Minuten Standby. Gilt am Netzteil und am Akku.\n\nEigene Einstellungen: Zeiten und Verhalten in KDE selbst festlegen. Diese Auswahl zuerst übernehmen."))
         self.apply_button = QPushButton("Profil übernehmen")
+        self.apply_button.setObjectName("confirm")
         self.apply_button.clicked.connect(self.apply)
-        self.body.addWidget(self.apply_button)
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(self.apply_button)
+        self.body.addLayout(actions)
         self.advanced = QPushButton("Weitere Energieeinstellungen …")
         self.advanced.clicked.connect(lambda: open_module(self, "energy"))
         self.body.addWidget(self.advanced)
@@ -63,6 +69,9 @@ class EnergySheet(Sheet):
         self.timeout.setSingleShot(True)
         self.timeout.timeout.connect(self.process.kill)
         self.message.setText("Aktuelle Auswahl: " + self.profile.currentText())
+        self.profile.currentIndexChanged.connect(lambda _: self.message.setText(
+            "Ausgewählt: " + self.profile.currentText() + ". Mit „Profil übernehmen“ anwenden."))
+        self.body.addStretch()
 
     def apply(self):
         if self.client.preview:

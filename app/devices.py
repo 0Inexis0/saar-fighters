@@ -5,7 +5,7 @@ import sys
 
 from PySide6.QtCore import QObject, QProcess, Qt, QTimer, Signal, QSize, QRectF
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-                              QListWidgetItem, QPushButton, QSlider, QVBoxLayout, QWidget, QComboBox, QPlainTextEdit, QFileDialog, QCheckBox)
+                              QListWidgetItem, QPushButton, QSlider, QVBoxLayout, QWidget, QPlainTextEdit, QFileDialog, QCheckBox, QButtonGroup, QRadioButton, QFrame)
 
 from PySide6.QtGui import QColor, QPainter, QPen
 from hardware import wifi_password_valid
@@ -26,6 +26,77 @@ def label(text="", style=""):
     if style:
         widget.setStyleSheet(style)
     return widget
+
+
+class SettingsChoice(QWidget):
+    """Visible, keyboard-accessible exclusive choices for short settings lists."""
+    currentIndexChanged = Signal(int)
+
+    def __init__(self, choices, *, compact=False):
+        super().__init__()
+        self.choices = choices
+        self.group = QButtonGroup(self)
+        layout = QHBoxLayout(self) if compact else QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6 if compact else 1)
+        self.setStyleSheet("""
+            QFrame#choiceRow { background: #30342a; border-radius: 10px; }
+            QFrame#choiceRow[selected="true"] { background: #3c4430; }
+            QRadioButton { spacing: 12px; font-size: 14px; font-weight: 600;
+                           padding: 14px; background: transparent; }
+            QRadioButton:hover { color: #ffffff; }
+            QRadioButton:focus { background: #454c37; border-radius: 8px; }
+            QRadioButton:disabled { color: #929382; }
+            QRadioButton::indicator { width: 18px; height: 18px; border-radius: 10px;
+                                    border: 1px solid #80856c; background: #25281f; }
+            QRadioButton::indicator:checked { background: #c0c699; border: 1px solid #c0c699;
+                                             image: none; }
+            QRadioButton::indicator:disabled { background: #55594a; }
+            QLabel { color: #b9bbaa; font-size: 12px; background: transparent; }
+        """)
+        for index, (title, key, description) in enumerate(choices):
+            frame = QFrame()
+            frame.setObjectName("choiceRow")
+            row = QVBoxLayout(frame)
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(0)
+            button = QRadioButton(title)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setAccessibleDescription(description)
+            self.group.addButton(button, index)
+            row.addWidget(button)
+            if description:
+                detail = label(description)
+                detail.setContentsMargins(45, 0, 16, 14)
+                row.addWidget(detail)
+            button.toggled.connect(lambda checked, target=frame: self.style_row(target, checked))
+            layout.addWidget(frame)
+        self.group.button(0).setChecked(True)
+        self.group.idToggled.connect(lambda index, checked: self.currentIndexChanged.emit(index) if checked else None)
+
+    @staticmethod
+    def style_row(frame, selected):
+        frame.setProperty("selected", selected)
+        frame.style().unpolish(frame)
+        frame.style().polish(frame)
+        frame.update()
+
+    def currentIndex(self):
+        return self.group.checkedId()
+
+    def setCurrentIndex(self, index):
+        button = self.group.button(index)
+        if button:
+            button.setChecked(True)
+
+    def findData(self, key):
+        return next((i for i, choice in enumerate(self.choices) if choice[1] == key), -1)
+
+    def currentData(self):
+        return self.choices[self.currentIndex()][1]
+
+    def currentText(self):
+        return self.choices[self.currentIndex()][0]
 
 
 class RemoteToggle(QCheckBox):
@@ -826,8 +897,15 @@ class LogsSheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "Systemprotokolle",
                          "Lokale Protokolle dieses Starts. Sichtbar sind nur Einträge, für die dein Konto Leserechte hat.")
-        self.source = QComboBox()
-        self.source.addItems(["System: Warnungen und Fehler", "Benutzersitzung", "Vereinsprogramme"])
+        self.source = SettingsChoice([
+            ("System", "system", ""),
+            ("Sitzung", "session", ""),
+            ("Programme", "apps", ""),
+        ], compact=True)
+        self.source.setAccessibleName("Protokollquelle")
+        self.source.group.button(0).setAccessibleDescription("System: Warnungen und Fehler")
+        self.source.group.button(1).setAccessibleDescription("Benutzersitzung")
+        self.source.group.button(2).setAccessibleDescription("Vereinsprogramme")
         self.body.addWidget(self.source)
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)

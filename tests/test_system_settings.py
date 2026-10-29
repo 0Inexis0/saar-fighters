@@ -14,7 +14,7 @@ from notifications import NotificationCenter
 from system_status import snapshot
 from system_settings import open_module
 from main import Home, SettingsDialog, STYLE
-from PySide6.QtCore import QProcess
+from PySide6.QtCore import QProcess, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFontDatabase
@@ -93,6 +93,51 @@ class SettingsUiTests(unittest.TestCase):
             for name in ("segoeui.ttf", "segoeuib.ttf"):
                 QFontDatabase.addApplicationFont(str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / name))
         cls.app.setStyleSheet(STYLE)
+
+    def test_visible_choices_keyboard_backend_mapping_and_busy_state(self):
+        home = Home(preview=True)
+        home.resize(800, 540)
+        dialog = SettingsDialog(home)
+        dialog.show()
+        QTest.qWait(100)
+        try:
+            dialog.select_section("energy")
+            page = dialog.page
+            choice = page.profile
+            choice.group.button(0).setFocus()
+            QTest.keyClick(choice.group.button(0), Qt.Key.Key_Down)
+            self.assertEqual(choice.currentData(), "laptop")
+            self.assertIn("Laptopbetrieb", page.message.text())
+            self.assertEqual(sum(b.isChecked() for b in choice.group.buttons()), 1)
+            page.client.preview = False
+            with patch.object(page.process, "start") as start:
+                page.apply()
+                self.assertEqual(start.call_args.args[1][-1], "laptop")
+                self.assertFalse(choice.isEnabled())
+                self.assertFalse(dialog.back_button.isEnabled())
+            page.timeout.stop()
+            page.working(False)
+            page.client.preview = True
+            dialog.select_section("logs")
+            page = dialog.page
+            for index in range(3):
+                QTest.mouseClick(page.source.group.button(index), Qt.MouseButton.LeftButton)
+                self.assertEqual(page.source.currentIndex(), index)
+                self.assertIn("Beispieldaten", page.output.toPlainText())
+            page.source.setCurrentIndex(1)
+            page.client.preview = False
+            with patch.object(page.process, "start") as start:
+                page.load()
+                self.assertIn("--user", start.call_args.args[1])
+            page.timeout.stop()
+            page.working(False)
+            page.client.preview = True
+        finally:
+            home.device_client.preview = True
+            dialog.close()
+            home.close()
+            dialog.deleteLater()
+            home.deleteLater()
 
     def test_pages_fit_and_preview_never_changes_host(self):
         home = Home(preview=True)
