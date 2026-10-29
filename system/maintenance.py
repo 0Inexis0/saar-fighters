@@ -308,6 +308,9 @@ def main():
         raise SystemExit("Wartungspasswort erforderlich")
     if action == "install":
         install_tools()
+        # Older updaters already call this freshly downloaded entry point.
+        # Also reapply after package upgrades through configure_ssh's install hook.
+        subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_stability.py"], check=True)
     elif action == "restore":
         restore_surface(expected=args[1])
     elif action == "install-remote":

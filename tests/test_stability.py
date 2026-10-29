@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 PROJECT = Path(__file__).resolve().parents[1]
 
@@ -19,9 +19,20 @@ def load(relative):
 stability = load("system/configure_stability.py")
 spotify = load("app/spotify_launcher.py")
 health = load("app/runtime_health.py")
+maintenance = load("system/maintenance.py")
 
 
 class StabilityTests(unittest.TestCase):
+    def test_legacy_install_hook_applies_stability_after_installing_tools(self):
+        order = []
+        with patch.object(maintenance.sys, "argv", ["maintenance.py", "install"]), \
+                patch.object(maintenance.os, "geteuid", return_value=0, create=True), \
+                patch.object(maintenance, "install_tools", side_effect=lambda: order.append("tools")), \
+                patch.object(maintenance.subprocess, "run", side_effect=lambda *a, **k: order.append("policy")) as run:
+            maintenance.main()
+        self.assertEqual(order, ["tools", "policy"])
+        run.assert_called_once_with(["/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_stability.py"], check=True)
+
     def test_firefox_policy_preserves_existing_settings_and_original_backup(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
