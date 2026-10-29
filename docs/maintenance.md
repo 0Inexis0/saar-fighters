@@ -18,28 +18,16 @@ Weitere Systemupdates respektieren die Auswahl. Bestehende SSH-Sitzungen können
 weiterlaufen; neue Verbindungen werden nach dem Stoppen nicht mehr angenommen.
 Beim Einschalten bleiben Schlüsselanmeldung und die bisherigen Netzgrenzen erhalten.
 
-## Zugriff über das Internet
+## LAN-Fernwartung und Update
 
-Das Update installiert OpenSSH und Tailscale. Unter **Fernwartung** auf
-**Internet verbinden** klicken, das Wartungspasswort eingeben und anschließend
-**Tailscale-Anmeldung öffnen** wählen. Die Anmeldung erfolgt im Browser des
-normalen Desktopbenutzers. Ein eigenes Tailscale-Konto und gegebenenfalls die
-Gerätefreigabe in dessen Verwaltung sind erforderlich. Auch der Wartungsrechner
-muss mit diesem Tailscale-Netz verbunden sein. Eine Repo-Aktualisierung kann diese
-persönliche Anmeldung nicht ersetzen.
+Die Seite zeigt einen Ein/Aus-Schalter und bei aktivem SSH die lokale IP-Adresse.
+Die Änderung wird erst nach erfolgreicher Passwortfreigabe und Statusabfrage
+angezeigt. Die Fernwartung bleibt auf das gleiche WLAN oder LAN beschränkt.
+Das Update stoppt und deinstalliert die zuvor eingeführte Tailscale-Komponente
+und entfernt deren Netzbereich aus der SSH-Konfiguration. Ein bestehendes
+SSH-Opt-out bleibt erhalten.
 
-Die Seite zeigt die eigene Tailscale-IPv4-Adresse und den SSH-Aufruf auf Port 2222.
-Der Dienst akzeptiert zusätzlich `100.64.0.0/10`, weiterhin ausschließlich als
-`wartung` mit dem hinterlegten Schlüssel. Tailscale-Zugriffsregeln müssen Port 2222
-zwischen den beiden Geräten erlauben. Tailscale SSH auf Port 22 wird nicht aktiviert.
-Routerfreigaben werden nicht eingerichtet. **Internet trennen** führt `tailscale down`
-aus und trennt alle Tailscale-Verbindungen dieses Geräts; LAN-SSH bleibt separat
-schaltbar. **Fernwartung ausschalten** stoppt den SSH-Dienst für beide Zugangswege.
-Tailscale wird erst durch den ausdrücklichen Verbindungsklick gestartet und für
-weitere Neustarts aktiviert. Ein bloßes Update meldet kein Gerät bei Tailscale an.
-
-Fehlen Pakete, bietet die Seite deren Installation mit vollständigem Arch-Update
-an. Der neue Updater aktualisiert zuerst die Oberfläche und installiert die
+Fehlende OpenSSH-Pakete werden beim vollständigen Arch-Update installiert. Der neue Updater aktualisiert zuerst die Oberfläche und installiert die
 Wartungswerkzeuge, bevor Paketupdates starten. Ein Signaturfehler löst genau einen
 erneuten Download mit leerem temporärem Cache und `geo.mirror.pkgbuild.com` aus.
 Signaturregeln und die dauerhafte Mirrorliste bleiben unverändert. Scheitert auch

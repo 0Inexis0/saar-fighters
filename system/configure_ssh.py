@@ -121,7 +121,7 @@ def configure(root=Path("/"), command=run):
     if changed:
         command(["systemctl", "reload", SERVICE])
     command(["systemctl", "is-active", "--quiet", SERVICE])
-    print("SSH-Fernwartung aktiv: nur Wartungsschlüssel, LAN und Tailscale-IPv4, Port 2222.", flush=True)
+    print("SSH-Fernwartung aktiv: nur Wartungsschlüssel, nur lokales IPv4-Netz, Port 2222.", flush=True)
     try:
         data = json.loads(command(["ip", "-j", "-4", "address", "show", "scope", "global"]).stdout)
         for address in local_addresses(data):

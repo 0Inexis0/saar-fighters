@@ -1062,9 +1062,9 @@ QFrame#settingsSidebar { background: #20231b; border-right: 1px solid #3a3e30; }
 QScrollArea#settingsContent { background: #25281f; }
 QDialog#settingsDialog QPushButton { padding: 10px 12px; }
 QPushButton#settingsNav { background: transparent; text-align: left; border-radius: 9px;
-                         border-left: 3px solid transparent; }
+                         border: none; }
 QPushButton#settingsNav:hover, QPushButton#settingsNav:focus { background: #353b2b; }
-QPushButton#settingsNav:checked { background: #3c4430; color: #f3f1e6; border-left-color: #c3b48b; }
+QPushButton#settingsNav:checked { background: #3c4430; color: #f3f1e6; }
 QPushButton#settingsNav:disabled { color: #929382; }
 QFrame#statusChip { background: #303329; border: none; border-radius: 12px; }
 QListWidget { background: #1e211a; border: none; border-radius: 12px; padding: 6px; outline: none; }

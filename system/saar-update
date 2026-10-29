@@ -15,6 +15,7 @@ echo "Eigene Oberfläche, Taskleiste und Designs werden aktualisiert …"
 /usr/bin/python /usr/local/libexec/saar-update-custom.py
 echo "Wartungsoberfläche wird eingerichtet …"
 /usr/bin/python -I /opt/saar-fighters/system/maintenance.py install
+/usr/bin/python -I /opt/saar-fighters/system/remove_tailscale.py
 echo "Arch Linux und Fernwartungspakete werden vollständig aktualisiert …"
 if ! /usr/bin/python -I /opt/saar-fighters/system/update_packages.py; then
     echo "Systempakete konnten nicht aktualisiert werden. Die Oberfläche wurde bereits aktualisiert. Bitte Einstellungen neu öffnen."
