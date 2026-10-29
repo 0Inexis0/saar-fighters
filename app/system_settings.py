@@ -171,3 +171,8 @@ class SystemSheet(Sheet):
     def refresh(self):
         data = snapshot() if not self.client.preview else {"version": "Vorschau", "kernel": "Linux (Beispiel)", "architecture": "x86_64", "memory_used": 2 * 1024**3, "memory_total": 4 * 1024**3, "disk_free": 20 * 1024**3, "disk_total": 32 * 1024**3, "last_update": "Beispiel: heute, 10:30"}
         self.info.setText(f"Oberflächenstand: {data['version']}\n\nKernel: {data['kernel']}\nArchitektur: {data['architecture']}\n\nArbeitsspeicher: {gib(data['memory_used'])} von {gib(data['memory_total'])} belegt\n\nSystemlaufwerk: {gib(data['disk_free'])} von {gib(data['disk_total'])} frei\n\nLetztes erfolgreiches Systemupdate:\n{data['last_update']}")
+        if hasattr(self, "soft_info"):
+            values = dict(data, memory=f"{gib(data['memory_used'])} von {gib(data['memory_total'])} belegt",
+                          disk=f"{gib(data['disk_free'])} von {gib(data['disk_total'])} frei")
+            for key, widget in self.soft_info.items():
+                widget.setText(str(values[key]))

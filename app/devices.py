@@ -11,6 +11,7 @@ from PySide6.QtGui import QColor, QPainter, QPen
 from hardware import wifi_password_valid
 from music_player import PlayerSlider
 from notifications import NoticeLabel
+from settings_ui import AudioCheckBox, AudioDeviceRow, AudioListDelegate
 
 EXAMPLE_STATUS = {
     "network": {"state": 70, "name": "Vereinsheim", "type": "802-11-wireless"},
@@ -56,7 +57,9 @@ class SettingsOption(QRadioButton):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setOpacity(1.0 if self.isEnabled() else 0.35)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#353e2d" if self.isChecked() else "#2c3127"))
+        soft = self.property("oliveSoft")
+        painter.setBrush(QColor(("#414b34" if self.isChecked() else "#272e24") if soft
+                               else ("#353e2d" if self.isChecked() else "#2c3127")))
         painter.drawRoundedRect(QRectF(self.rect()), 8, 8)
         if self.isChecked():
             painter.setPen(QPen(QColor("#c1d69e"), 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
@@ -120,10 +123,10 @@ class RemoteToggle(QCheckBox):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setOpacity(1.0 if self.isEnabled() else 0.4)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#b7bd87" if self.isChecked() else "#55594a"))
-        painter.drawRoundedRect(QRectF(2, 4, 48, 24), 12, 12)
-        painter.setBrush(QColor("#25281f" if self.isChecked() else "#eeece1"))
-        painter.drawEllipse(QRectF(28 if self.isChecked() else 6, 8, 16, 16))
+        painter.setBrush(QColor("#c3d6a2" if self.isChecked() else "#46513d"))
+        painter.drawRoundedRect(QRectF(2, 2, 48, 28), 14, 14)
+        painter.setBrush(QColor("#f4f7ed"))
+        painter.drawEllipse(QRectF(25 if self.isChecked() else 5, 5, 22, 22))
         if self.hasFocus():
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QPen(QColor("#eeece1"), 1))
@@ -711,6 +714,15 @@ class BrightnessSheet(Sheet):
 
 
 class AudioOutputList(QListWidget):
+    def __init__(self):
+        super().__init__()
+        self.setItemDelegate(AudioListDelegate(self))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "soft_resize_timer"):
+            self.soft_resize_timer.start(0)
+
     def keyPressEvent(self, event):
         item = self.currentItem()
         if item and event.key() == Qt.Key.Key_Space:
@@ -823,15 +835,10 @@ class AudioSheet(Sheet):
                                else Qt.CheckState.Unchecked)
             item.setSizeHint(QSize(0, 96))
             self.list.addItem(item)
-            widget = QWidget()
-            box = QVBoxLayout(widget)
-            box.setContentsMargins(4, 4, 8, 4)
-            check = QCheckBox(f'{output["description"]} · {output["volume"]} %')
+            check = AudioCheckBox(f'{output["description"]} · {output["volume"]} %')
             check.setChecked(item.checkState() == Qt.CheckState.Checked)
             check.setToolTip("Für gemeinsame Wiedergabe auswählen")
             check.toggled.connect(lambda checked, entry=item: entry.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked))
-            box.addWidget(check)
-            widget.setStyleSheet("background: #1e211a;")
             item.setData(Qt.ItemDataRole.ForegroundRole, self.palette().base())
             volume = PlayerSlider(output["description"] + " Lautstärke")
             volume.reflect(min(100, output["volume"]))
@@ -841,7 +848,7 @@ class AudioSheet(Sheet):
                 "audio_output_volume", {"name": name, "value": value}, preserve=True))
             self.output_sliders.append(volume)
             volume.valueChanged.connect(lambda _, active=volume: self.output_pending(active))
-            box.addWidget(volume)
+            widget = AudioDeviceRow(check, volume)
             self.list.setItemWidget(item, widget)
         self.list.blockSignals(False)
         self.slider.blockSignals(True)

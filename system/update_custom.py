@@ -31,7 +31,7 @@ INTEGRATIONS = (
 REQUIRED = (
     "app/notification_window.py", "app/notification_bridge.py", "app/notification_watch.py",
     "system/configure_wallet.py",
-    "app/system_settings.py", "app/system_status.py", "app/notifications.py", "system/energy_profile.py",
+    "app/system_settings.py", "app/settings_ui.py", "app/system_status.py", "app/notifications.py", "system/energy_profile.py",
     "system/update_packages.py",
     "system/remove_tailscale.py",
     "system/configure_stability.py", "app/spotify_launcher.py",

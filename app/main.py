@@ -25,6 +25,7 @@ from browser import browser_command
 from maintenance import MaintenancePage
 from devices import NoticeLabel
 from system_settings import DisplaySheet, EnergySheet, SystemSheet
+from settings_ui import apply_soft_settings
 from notifications import NotificationCenter
 from notification_window import NotificationsDialog
 from notification_bridge import NotificationBridge
@@ -780,8 +781,7 @@ class SettingsDialog(QDialog):
         self.current_section = section
         # Reuse the device controls inside the settings window instead of opening a modal.
         self.page.setWindowFlags(Qt.WindowType.Widget)
-        self.page.layout().setContentsMargins(24, 24, 24, 24)
-        self.page.layout().setSpacing(12)
+        apply_soft_settings(self.page, section)
         self.page_back_button().hide()
         self.page_back_button().installEventFilter(self)
         self.page.installEventFilter(self)
@@ -1281,7 +1281,7 @@ QDialog, QMessageBox { background: #25281f; }
 QDialog#deviceSheet { background: #25281f; border: none; border-radius: 18px; }
 QFrame#settingsSidebar { background: #20231e; border-right: 1px solid #34392f; }
 QFrame#settingsRail { background: #20231e; }
-QScrollArea#settingsContent { background: #25281f; }
+QScrollArea#settingsContent { background: #191e18; }
 QDialog#settingsDialog QScrollBar:vertical { background: transparent; width: 6px; margin: 4px 0; }
 QDialog#settingsDialog QScrollBar::handle:vertical { background: #505647; border-radius: 3px; min-height: 36px; }
 QDialog#settingsDialog QScrollBar::add-line:vertical, QDialog#settingsDialog QScrollBar::sub-line:vertical { height: 0; }

@@ -127,6 +127,13 @@ und den grafischen Installer verwenden: [Installation](installation.md).
   normale Größe. Die Fenster lassen sich weiterhin verkleinern.
   Die Einrichtung greift beim Anmelden, auch nach Updates bestehender Rechner.
 - Einstellungen: zentrale Kachel für WLAN, Bluetooth, Lautstärke, Bildschirm und Updates.
+  Alle zehn Einstellungsseiten verwenden das Olive-Soft-Design mit abgerundeten
+  Gruppen, klaren Auswahllisten sowie einheitlichen Schaltern und Reglern.
+  Kategorien, Reihenfolge und Gruppierung der Seitenleiste bleiben bestehen.
+  Die gemeinsame Lautstärke steht über den einzelnen Wiedergabegeräten;
+  deren Regler stehen auf breiten Fenstern daneben, auf kleinen darunter.
+  Lange Seiten sind scrollbar. Laufende Geräteänderungen und Wartungsaktionen
+  sperren weiterhin das Verlassen der betroffenen Seite.
   Links bleibt die Seitenleiste sichtbar, rechts öffnet sich der gewählte Bereich
   direkt im selben Fenster. „Startseite“ führt zurück. Während Änderungen
   übernommen werden oder ein Update läuft, ist der Bereichswechsel gesperrt.

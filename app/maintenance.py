@@ -26,10 +26,10 @@ class RemoteToggle(QCheckBox):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setOpacity(1.0 if self.isEnabled() else 0.4)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#b7bd87" if self.isChecked() else "#55594a"))
-        painter.drawRoundedRect(QRectF(2, 4, 48, 24), 12, 12)
-        painter.setBrush(QColor("#25281f" if self.isChecked() else "#eeece1"))
-        painter.drawEllipse(QRectF(28 if self.isChecked() else 6, 8, 16, 16))
+        painter.setBrush(QColor("#c3d6a2" if self.isChecked() else "#46513d"))
+        painter.drawRoundedRect(QRectF(2, 2, 48, 28), 14, 14)
+        painter.setBrush(QColor("#f4f7ed"))
+        painter.drawEllipse(QRectF(25 if self.isChecked() else 5, 5, 22, 22))
         if self.hasFocus():
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QPen(QColor("#eeece1"), 1))
@@ -177,6 +177,8 @@ class MaintenancePage(QDialog):
         if live:
             self.notice.setText("Diese Funktion ist nur auf dem installierten Rechner verfügbar.")
             self.notice.show()
+        if hasattr(self, "soft_details_group"):
+            self.soft_details_group.setVisible(bool(self.details.text()))
 
     def working(self, busy):
         self.busy = busy
