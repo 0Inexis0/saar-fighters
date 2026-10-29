@@ -28,6 +28,22 @@ def label(text="", style=""):
     return widget
 
 
+class NoticeLabel(QLabel):
+    """Reserve space only while an actionable message is present."""
+    def __init__(self, text=""):
+        super().__init__()
+        self.setWordWrap(True)
+        self.setTextFormat(Qt.TextFormat.PlainText)
+        self.setText(text)
+
+    def setText(self, text):
+        super().setText(text)
+        self.setVisible(bool(text))
+
+    def clear(self):
+        self.setText("")
+
+
 class SettingsOption(QRadioButton):
     """A whole-row native radio control with a trailing selection mark."""
     def __init__(self, title, description):
@@ -295,10 +311,9 @@ class Sheet(QDialog):
         self.back.clicked.connect(self.reject)
         header.addWidget(self.back)
         self.body.addLayout(header)
-        self.body.addWidget(label(description, "color: #b9b8a7;"))
-        if client.preview:
-            self.body.addWidget(label("Vorschau · Beispieldaten · keine Änderungen am Rechner", "color: #c3b48b;"))
-        self.message = label("Wird geladen …", "color: #d4d4bb;")
+        if description:
+            self.body.addWidget(label(description, "color: #b9b8a7;"))
+        self.message = NoticeLabel()
         self.body.addWidget(self.message)
         self.controls = []
         self.finished.connect(lambda _: setattr(self, "closed", True))
@@ -308,7 +323,7 @@ class Sheet(QDialog):
         self.back.setEnabled(not busy)
         for control in self.controls:
             control.setEnabled(not busy)
-        if message:
+        if message or not busy:
             self.message.setText(message)
 
     def request(self, operation, args=None, callback=None):
@@ -321,7 +336,7 @@ class Sheet(QDialog):
         self.working(True, "Einen Moment …")
         def done(data, error):
             self.working(False)
-            self.message.setText(error or data.get("message", "Einstellung übernommen."))
+            self.message.setText(error or "")
             self.client.refresh_status()
             if finished:
                 finished()
@@ -340,7 +355,7 @@ class Sheet(QDialog):
 
 class WifiSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "WLAN", "Netz auswählen, bei Bedarf Passwort eingeben und verbinden.")
+        super().__init__(parent, client, "WLAN", "Mit einem WLAN verbinden.")
         row = QHBoxLayout()
         self.toggle = RemoteToggle()
         self.toggle.setAccessibleName("WLAN")
@@ -388,9 +403,9 @@ class WifiSheet(Sheet):
         elif not data["hardware_enabled"]:
             self.message.setText("WLAN ist am Gerät gesperrt. Bitte Flugmodus oder WLAN-Schalter prüfen.")
         elif not data["enabled"]:
-            self.message.setText("WLAN ist ausgeschaltet.")
+            self.message.clear()
         else:
-            self.message.setText("Wähle dein WLAN aus." if data["networks"] else "Noch keine Netze gefunden. Bitte erneut suchen.")
+            self.message.setText("" if data["networks"] else "Keine Netze gefunden.")
             for network in data["networks"]:
                 security = {"open": "Offen", "owe": "Verschlüsselt, ohne Passwort",
                             "wpa-psk": "Mit Passwort", "sae": "Mit Passwort",
@@ -433,7 +448,7 @@ class WifiSheet(Sheet):
         self.working(True, "Verbinde mit dem WLAN …")
         def connected(data, error):
             self.working(False)
-            self.message.setText(error or data["message"])
+            self.message.setText(error or "")
             self.client.refresh_status()
             if not error:
                 self.load()
@@ -442,7 +457,7 @@ class WifiSheet(Sheet):
 
 class BluetoothSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Bluetooth", "Boxen oder andere Geräte auswählen. Neue Geräte vorher in den Kopplungsmodus versetzen.")
+        super().__init__(parent, client, "Bluetooth", "Lautsprecher und andere Geräte verbinden.")
         row = QHBoxLayout()
         self.toggle = RemoteToggle()
         self.toggle.setAccessibleName("Bluetooth")
@@ -497,7 +512,7 @@ class BluetoothSheet(Sheet):
         self.scan.setText("Suche beenden" if self.searching else "Geräte suchen")
         if not quiet:
             self.message.setText(error or ("Kein Bluetooth-Adapter erkannt." if not available else
-                "Bluetooth ist ausgeschaltet." if not powered else "Wähle ein Gerät aus oder starte die Suche."))
+                "" if not powered or self.info.get("devices") else "Keine Geräte gefunden."))
         for device in self.info.get("devices", []):
             state = "Verbunden" if device["connected"] else "Bereits gekoppelt" if device["paired"] else "Neues Gerät"
             item = QListWidgetItem(f'{device["name"]}\n{state}')
@@ -541,7 +556,7 @@ class BluetoothSheet(Sheet):
             self.request("bt_scan", {"enabled": False})
             self.scan.setText("Geräte suchen")
             if not self.closed and not self.busy:
-                self.message.setText("Suche beendet. Du kannst erneut nach Geräten suchen.")
+                self.message.clear()
 
     def connect_selected(self):
         item = self.list.currentItem()
@@ -616,7 +631,7 @@ class BluetoothSheet(Sheet):
 class BrightnessSheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "Bildschirmhelligkeit",
-                         "Bildschirm auswählen und die Helligkeit mit dem Regler anpassen.")
+                         "Helligkeit und Anzeige anpassen.")
         self.list = QListWidget()
         self.list.setAccessibleName("Bildschirme mit Helligkeitssteuerung")
         self.body.addWidget(self.list, 1)
@@ -668,7 +683,7 @@ class BrightnessSheet(Sheet):
             self.list.setCurrentRow(0)
         self.list.setEnabled(bool(screens))
         self.slider.setEnabled(bool(screens))
-        self.message.setText(error or ("Änderungen werden direkt übernommen." if screens else
+        self.message.setText(error or ("" if screens else
             "Kein steuerbarer Bildschirm erkannt. Bitte die Helligkeit direkt am Monitor einstellen."))
 
     def selected(self, *_):
@@ -723,7 +738,7 @@ class AudioOutputList(QListWidget):
 class AudioSheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "Ton & Lautsprecher",
-                         "Eine oder mehrere Boxen für die gleichzeitige Wiedergabe auswählen.")
+                         "Lautstärke und Wiedergabegeräte auswählen.")
         self.list = AudioOutputList()
         self.list.setAccessibleName("Audioausgänge für gleichzeitige Wiedergabe")
         self.list.setMinimumHeight(210)
@@ -850,9 +865,8 @@ class AudioSheet(Sheet):
         self.level.setText(f'Gemeinsame Lautstärke: {self.slider.value()} %' if control else "Lautstärke nicht verfügbar")
         self.muted = bool(control and control["mute"])
         self.mute.setChecked(not self.muted)
-        count = sum(o.get("selected", o.get("default", False)) for o in outputs)
         self.message.setText(error or message or (
-            f"{count} Ausgänge aktiv. Gewünschte Boxen ankreuzen und die Auswahl übernehmen." if outputs
+            "" if outputs
             else "Kein Audioausgang erkannt. Bitte die Boxen anschließen."))
         self.update_controls()
 
@@ -868,7 +882,7 @@ class AudioSheet(Sheet):
         def done(data, error):
             self.client.refresh_status()
             self.request("audio", callback=lambda state, read_error:
-                         self.loaded(state, read_error, error or (data or {}).get("message", ""), preserve or bool(error)))
+                         self.loaded(state, read_error, error or "", preserve or bool(error)))
         self.request(operation, args, done)
 
     def volume_changed(self, value):
@@ -901,7 +915,7 @@ class AudioSheet(Sheet):
 class LogsSheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "Systemprotokolle",
-                         "Lokale Protokolle dieses Starts. Sichtbar sind nur Einträge, für die dein Konto Leserechte hat.")
+                         "Fehler und Ereignisse dieses Starts anzeigen.")
         self.source = SettingsChoice([
             ("System", "system", ""),
             ("Sitzung", "session", ""),
@@ -941,7 +955,7 @@ class LogsSheet(Sheet):
             return
         self.output.clear()
         if self.client.preview:
-            self.message.setText("Beispielprotokolle, keine echten Systemdaten.")
+            self.message.clear()
             self.output.setPlainText("Vorschau: Beispieldaten\n10:30:00 Vereinsoberfläche gestartet.\n10:31:02 Audioausgang verbunden.")
             return
         if self.source.currentIndex() == 2:
@@ -951,7 +965,7 @@ class LogsSheet(Sheet):
                     stream.seek(0, 2)
                     stream.seek(max(0, stream.tell() - 65536))
                     self.output.setPlainText(stream.read().decode("utf-8", errors="replace"))
-                self.message.setText("Lokale Start-, Fehler- und Beendigungsereignisse der Vereinsprogramme.")
+                self.message.clear()
             except OSError:
                 self.message.setText("Noch keine lesbaren Programmprotokolle vorhanden.")
             return
@@ -972,7 +986,7 @@ class LogsSheet(Sheet):
         self.output.setPlainText(bytes(self.process.readAllStandardOutput()).decode(errors="replace"))
         detail = bytes(self.process.readAllStandardError()).decode(errors="replace").strip()
         self.message.setText("Protokolle konnten nicht vollständig geladen werden." if code else
-                             "Bis zu 500 Einträge. Keine automatische Weitergabe.")
+                             "")
         if detail:
             self.message.setText(self.message.text() + "\n" + detail[:1500])
 

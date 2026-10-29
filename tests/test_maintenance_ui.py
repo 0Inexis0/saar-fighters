@@ -31,7 +31,7 @@ class MaintenanceUITests(unittest.TestCase):
             with patch.object(QProcess, "start") as start:
                 QTest.mouseClick(page.action, Qt.MouseButton.LeftButton)
                 start.assert_not_called()
-                self.assertIn("Vorschau", page.message.text())
+                self.assertTrue(page.message.isHidden())
 
     def test_restore_cancel_is_default_and_never_calls_pkexec(self):
         page = self.page("recovery")

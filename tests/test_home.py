@@ -12,6 +12,7 @@ from main import Home, SettingsDialog, STYLE, UpdateDialog
 from maintenance import MaintenancePage
 from devices import AudioSheet, BluetoothSheet, BrightnessSheet, WifiSheet
 from PySide6.QtCore import QProcess, Qt, QTimer
+from PySide6.QtGui import QFontDatabase
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -20,6 +21,9 @@ class HomeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
+        if sys.platform == "win32":
+            for name in ("segoeui.ttf", "segoeuib.ttf"):
+                QFontDatabase.addApplicationFont(str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / name))
         cls.app.setStyleSheet(STYLE)
 
     def setUp(self):
@@ -110,7 +114,7 @@ class HomeTests(unittest.TestCase):
                 self.assertTrue(dialog.nav_buttons[action].isChecked())
                 self.assertEqual(sum(b.isChecked() for b in dialog.nav_buttons.values()), 1)
             QTest.mouseClick(dialog.page.start, Qt.MouseButton.LeftButton)
-            self.assertIn("Vorschau", dialog.page.state.text())
+            self.assertTrue(dialog.page.state.isHidden())
             start.assert_not_called()
         QTest.mouseClick(dialog.back_button, Qt.MouseButton.LeftButton)
         self.assertFalse(dialog.isVisible())
@@ -125,12 +129,13 @@ class HomeTests(unittest.TestCase):
             self.app.processEvents()
             self.assertLessEqual(dialog.width(), size[0])
             self.assertLessEqual(dialog.height(), size[1])
-            for button in (*dialog.nav_buttons.values(), dialog.back_button):
+            for button in dialog.nav_buttons.values():
                 self.assertTrue(dialog.sidebar.rect().contains(button.geometry()))
+            self.assertTrue(dialog.rect().contains(dialog.back_button.mapTo(dialog, dialog.back_button.rect().center())))
             for action in dialog.nav_buttons:
                 QTest.mouseClick(dialog.nav_buttons[action], Qt.MouseButton.LeftButton)
                 self.app.processEvents()
-                self.assertEqual(dialog.content.horizontalScrollBar().maximum(), 0)
+                self.assertEqual(dialog.content.horizontalScrollBar().maximum(), 0, (size, action))
                 self.assertLessEqual(dialog.width(), size[0])
                 self.assertLessEqual(dialog.height(), size[1])
                 self.assertTrue(dialog.rect().contains(dialog.content.geometry()))

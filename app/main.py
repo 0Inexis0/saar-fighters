@@ -23,6 +23,7 @@ from music_player import ArtworkView, MusicPlayerDialog, PlayerSlider, clock_tex
 from runtime_health import record as record_health, categories as error_categories
 from browser import browser_command
 from maintenance import MaintenancePage
+from devices import NoticeLabel
 from system_settings import DisplaySheet, EnergySheet, SystemSheet, NotificationsSheet
 from notifications import NotificationCenter
 from system_status import snapshot as system_snapshot
@@ -401,20 +402,18 @@ class UpdateDialog(QDialog):
         self.setWindowTitle("System aktualisieren")
         self.resize(740, 490)
         layout = QVBoxLayout(self)
-        title = QLabel("Updates für euren Rechner.")
+        title = QLabel("Updates")
         title.setWordWrap(True)
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
         layout.addWidget(title)
-        info = QLabel("Aktualisiert Arch, Flatpak-Apps und Saar-Fighters von GitHub/main.\n"
-                      "Du brauchst Internet und das Passwort des Wartungskontos.\n"
-                      "Bitte Netzteil anschließen und währenddessen nicht ausschalten.")
+        info = QLabel("System und Apps aktualisieren.")
         info.setWordWrap(True)
         layout.addWidget(info)
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
-        self.output.setPlaceholderText("Bereit. Erst „Update starten“ löst die Passwortabfrage aus.")
+        self.output.hide()
         layout.addWidget(self.output, 1)
-        self.state = QLabel("Noch nicht gestartet")
+        self.state = NoticeLabel()
         self.state.setWordWrap(True)
         layout.addWidget(self.state)
         buttons = QHBoxLayout()
@@ -424,6 +423,7 @@ class UpdateDialog(QDialog):
         buttons.addWidget(self.start)
         buttons.addWidget(self.close_button)
         layout.addLayout(buttons)
+        layout.addStretch()
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.process.readyReadStandardOutput.connect(self.read_output)
@@ -434,12 +434,13 @@ class UpdateDialog(QDialog):
 
     def begin(self, preview):
         if preview:
-            self.state.setText("Vorschau: Auf diesem Rechner wird kein Update ausgeführt.")
+            self.state.clear()
             return
         self.start.setEnabled(False)
         self.close_button.setEnabled(False)
         self.output.clear()
-        self.state.setText("Warte auf Freigabe / Update läuft …")
+        self.output.show()
+        self.state.setText("Update läuft. Netzteil anschließen und nicht ausschalten.")
         self.process.start("pkexec", ["/usr/local/libexec/saar-update"])
 
     def read_output(self):

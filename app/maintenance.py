@@ -35,8 +35,18 @@ class RemoteToggle(QCheckBox):
             painter.drawRoundedRect(QRectF(0.5, 2, 51, 28), 14, 14)
 
 
+class MaintenanceLabel(QLabel):
+    def setText(self, text):
+        super().setText(text)
+        self.setVisible(bool(text))
+
+    def clear(self):
+        self.setText("")
+
+
 def text_label(text, size=14):
-    widget = QLabel(text)
+    widget = MaintenanceLabel()
+    widget.setText(text)
     widget.setTextFormat(Qt.TextFormat.PlainText)
     widget.setWordWrap(True)
     widget.setStyleSheet(f"font-size: {size}px;")
@@ -56,10 +66,8 @@ class MaintenancePage(QDialog):
         body.addWidget(text_label(self.windowTitle(), 26))
         explanation = ("Erlaubt SSH-Zugriff im gleichen WLAN oder LAN."
                        if section == "remote" else
-                       "Stellt die vor dem letzten Oberflächenupdate gesicherte Version wieder her. Persönliche Dateien, Anmeldungen, SSH und Systempakete bleiben erhalten.")
+                       "Die vorherige Oberfläche wiederherstellen. Persönliche Dateien bleiben erhalten.")
         body.addWidget(text_label(explanation))
-        if preview:
-            body.addWidget(text_label("Vorschau mit Beispieldaten. Es werden keine Änderungen ausgeführt.", 12))
         self.summary = text_label("Status wird geladen …", 20)
         if section != "remote":
             body.addWidget(self.summary)
@@ -162,7 +170,7 @@ class MaintenancePage(QDialog):
             self.summary.setText("Sicherung verfügbar" if surface.get("available") else "Keine Wiederherstellung verfügbar")
             self.details.setText(f"Aktuelle Oberfläche: {short(surface.get('current', 'Unbekannt'))}\n"
                                  f"Gesicherte Oberfläche: {short(surface.get('previous', 'Keine'))}")
-            self.notice.setText(surface.get("reason") or "Die Sicherung wurde vor dem Update erstellt. Ob sie auf diesem Gerät fehlerfrei lief, wurde nicht automatisch geprüft.")
+            self.notice.setText(surface.get("reason") or "")
             self.action_name = "restore"
             self.action.setEnabled(bool(surface.get("available")) and not live)
         if live:
@@ -180,7 +188,7 @@ class MaintenancePage(QDialog):
             return
         if self.preview:
             self.show_status(self.snapshot)
-            self.message.setText("Vorschau: Es wurde nichts verändert.")
+            self.message.clear()
             return
         if self.section == "remote":
             # Only display the confirmed state, including while authorization is pending.

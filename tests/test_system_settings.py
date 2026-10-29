@@ -107,7 +107,8 @@ class SettingsUiTests(unittest.TestCase):
             choice.group.button(0).setFocus()
             QTest.keyClick(choice.group.button(0), Qt.Key.Key_Down)
             self.assertEqual(choice.currentData(), "balanced")
-            self.assertIn("Ausgeglichen", page.message.text())
+            self.assertEqual(page.message.text(), "")
+            self.assertTrue(page.message.isHidden())
             self.assertEqual(sum(b.isChecked() for b in choice.group.buttons()), 1)
             page.client.preview = False
             with patch.object(page.process, "start") as start:
@@ -165,6 +166,30 @@ class SettingsUiTests(unittest.TestCase):
                 dialog.grab().save(str(target / (section + ".png")))
         finally:
             dialog.close()
+            home.close()
+            dialog.deleteLater()
+            home.deleteLater()
+
+    def test_all_settings_hide_idle_notices_but_show_errors(self):
+        home = Home(preview=True)
+        home.resize(800, 540)
+        dialog = SettingsDialog(home)
+        dialog.show()
+        QTest.qWait(100)
+        try:
+            for section in dialog.nav_buttons:
+                dialog.select_section(section)
+                QTest.qWait(50)
+                notice = getattr(dialog.page, "message", getattr(dialog.page, "state", None))
+                self.assertTrue(notice.isHidden(), section)
+                notice.setText("Verbindung fehlgeschlagen.")
+                self.assertFalse(notice.isHidden(), section)
+                notice.clear()
+                self.assertTrue(notice.isHidden(), section)
+                self.assertEqual(dialog.content.horizontalScrollBar().maximum(), 0, section)
+        finally:
+            dialog.close()
+            home.slideshow.stop()
             home.close()
             dialog.deleteLater()
             home.deleteLater()

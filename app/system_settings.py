@@ -11,14 +11,14 @@ MODULES = {"display": "kcm_kscreen", "energy": "kcm_powerdevilprofilesconfig"}
 
 def open_module(page, name):
     if page.client.preview:
-        page.message.setText("Vorschau: Die KDE-Einstellungen werden auf dem Vereinsrechner geöffnet.")
+        page.message.clear()
         return
     executable = shutil.which("systemsettings")
     if not executable:
         page.message.setText("KDE-Systemeinstellungen fehlen. Bitte zuerst ein Systemupdate ausführen.")
         return
     started, _ = QProcess.startDetached(executable, [MODULES[name]])
-    page.message.setText("KDE-Einstellungen im eigenen Fenster geöffnet." if started else "Die KDE-Einstellungen konnten nicht gestartet werden.")
+    page.message.setText("" if started else "Die KDE-Einstellungen konnten nicht gestartet werden.")
 
 
 class DisplaySheet(BrightnessSheet):
@@ -28,7 +28,6 @@ class DisplaySheet(BrightnessSheet):
         self.advanced = QPushButton("Anzeige einrichten …")
         self.advanced.clicked.connect(lambda: open_module(self, "display"))
         self.body.insertWidget(1, self.advanced)
-        self.body.insertWidget(2, label("Anzeige einrichten: Auflösung, Größe, Drehung sowie Anordnung und Spiegelung mehrerer Monitore im KDE-Fenster."))
         self.controls.append(self.advanced)
 
 
@@ -40,13 +39,13 @@ class EnergySheet(Sheet):
     )
 
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Energie & Leistung", "Leistungsprofil für diesen Rechner. Änderungen werden direkt übernommen.")
+        super().__init__(parent, client, "Energie & Leistung", "")
         self.profile = SettingsChoice(self.PROFILES)
         self.profile.setAccessibleName("Linux-Leistungsprofil")
         self.body.addWidget(self.profile)
         self.availability = label("")
         self.body.addWidget(self.availability)
-        self.advanced = QPushButton("Bildschirm und Standby einrichten …")
+        self.advanced = QPushButton("Standby einstellen …")
         self.advanced.clicked.connect(lambda: open_module(self, "energy"))
         self.body.addWidget(self.advanced)
         self.body.addStretch()
@@ -100,7 +99,7 @@ class EnergySheet(Sheet):
             self.profile.group.button(index).setEnabled(profile in self.available)
         self.availability.setText("Leistung wird von diesem Rechner nicht angeboten." if "performance" not in self.available else "")
         self.availability.setVisible(bool(self.availability.text()))
-        self.message.setText(("Vorschau · Aktiv: " if self.client.preview else "Aktiv: ") + self.profile.currentText())
+        self.message.clear()
 
     def apply(self, *_):
         key = self.profile.currentData()
@@ -158,7 +157,7 @@ class EnergySheet(Sheet):
 
 class SystemSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Systeminformationen", "Lokale Systemdaten. Aktualisierung alle zehn Sekunden.")
+        super().__init__(parent, client, "Systeminformationen", "")
         self.info = label("")
         self.body.addWidget(self.info)
         self.body.addStretch()
@@ -171,13 +170,12 @@ class SystemSheet(Sheet):
 
     def refresh(self):
         data = snapshot() if not self.client.preview else {"version": "Vorschau", "kernel": "Linux (Beispiel)", "architecture": "x86_64", "memory_used": 2 * 1024**3, "memory_total": 4 * 1024**3, "disk_free": 20 * 1024**3, "disk_total": 32 * 1024**3, "last_update": "Beispiel: heute, 10:30"}
-        self.message.setText("Saar-Fighters OS · Arch Linux")
         self.info.setText(f"Oberflächenstand: {data['version']}\n\nKernel: {data['kernel']}\nArchitektur: {data['architecture']}\n\nArbeitsspeicher: {gib(data['memory_used'])} von {gib(data['memory_total'])} belegt\n\nSystemlaufwerk: {gib(data['disk_free'])} von {gib(data['disk_total'])} frei\n\nLetztes erfolgreiches Systemupdate:\n{data['last_update']}")
 
 
 class NotificationsSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Mitteilungen", "Updateergebnisse, Geräteprobleme, Akku und Speicher. Bis zu 100 lokale Einträge.")
+        super().__init__(parent, client, "Mitteilungen", "Meldungen zu Geräten und Updates.")
         self.center = parent.home.notifications
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
@@ -193,5 +191,6 @@ class NotificationsSheet(Sheet):
         self.refresh()
 
     def refresh(self):
-        self.message.setText(self.center.storage_error or (f"{self.center.unread} ungelesene Meldungen" if self.center.items else "Keine Meldungen vorhanden."))
+        self.message.setText(self.center.storage_error or "")
+        self.output.setPlaceholderText("Keine Mitteilungen")
         self.output.setPlainText("\n\n".join(f"{'NEU · ' if not item['read'] else ''}{item['title']}\n{item['time']}\n{item['body']}" for item in reversed(self.center.items)))
