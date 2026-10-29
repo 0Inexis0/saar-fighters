@@ -94,7 +94,7 @@ class AppsPageTests(unittest.TestCase):
         self.home.preview = False
         with patch("main.shutil.which", return_value="brave"), patch.object(QProcess, "start") as start:
             self.dialog.open_app(next(app for app in SHORTCUTS if app.id == "web"))
-            start.assert_called_once_with("brave", ["--new-window", "https://start.duckduckgo.com"])
+            start.assert_called_once_with("brave", ["--start-fullscreen", "--new-window", "https://start.duckduckgo.com"])
             self.assertIs(self.home.pages.currentWidget(), self.home.dashboard)
         self.home.show_apps()
         with patch("main.shutil.which", return_value=None):

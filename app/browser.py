@@ -7,5 +7,5 @@ APP_ID = "com.brave.Browser"
 def browser_command(url):
     for binary in ("brave", "brave-browser", "brave-browser-stable"):
         if shutil.which(binary):
-            return [binary, "--new-window", url]
-    return ["flatpak", "run", APP_ID, "--new-window", url]
+            return [binary, "--start-fullscreen", "--new-window", url]
+    return ["flatpak", "run", APP_ID, "--start-fullscreen", "--new-window", url]

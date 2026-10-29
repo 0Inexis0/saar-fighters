@@ -48,14 +48,14 @@ class ArtworkView(QWidget):
                                        Qt.TransformationMode.SmoothTransformation)
             painter.drawPixmap((self.width() - fitted.width()) // 2,
                                (self.height() - fitted.height()) // 2, fitted)
-        else:
+        elif not self.fill_tile:
             size = min(64, int(self.width() * .45))
             self.symbol.paint(painter, (self.width() - size) // 2, (self.height() - size) // 2, size, size)
         if self.fill_tile:
             shade = QLinearGradient(0, 0, 0, self.height())
             shade.setColorAt(0, QColor(8, 12, 9, 135))
-            shade.setColorAt(.3, QColor(8, 12, 9, 25))
-            shade.setColorAt(.58, QColor(8, 12, 9, 85))
+            shade.setColorAt(.3, QColor(8, 12, 9, 125))
+            shade.setColorAt(.58, QColor(8, 12, 9, 180))
             shade.setColorAt(1, QColor(8, 12, 9, 235))
             painter.fillRect(box, shade)
         if self.hasFocus():
@@ -211,8 +211,16 @@ class MusicPlayerDialog(QDialog):
         self.root.addLayout(top)
         body = QHBoxLayout()
         self.body = body
-        body.setSpacing(46)
-        self.root.addLayout(body, 1)
+        body.setSpacing(32)
+        body.setContentsMargins(0, 0, 0, 0)
+        self.body_container = QWidget()
+        self.body_container.setLayout(body)
+        self.body_container.setMaximumWidth(1000)
+        centered = QHBoxLayout()
+        centered.addStretch(1)
+        centered.addWidget(self.body_container, 1)
+        centered.addStretch(1)
+        self.root.addLayout(centered, 1)
         left = QWidget()
         self.player_panel = left
         left.setMinimumWidth(290)
@@ -280,9 +288,7 @@ class MusicPlayerDialog(QDialog):
         volume_row.addWidget(self.volume_value)
         player.addLayout(volume_row)
         player.addStretch()
-        body.addStretch(1)
-        body.addWidget(left, 3)
-        body.addStretch(1)
+        body.addWidget(left, 1)
         self.lyrics_panel = QWidget()
         right = QVBoxLayout(self.lyrics_panel)
         right.setContentsMargins(0, 0, 0, 0)
@@ -325,7 +331,7 @@ class MusicPlayerDialog(QDialog):
         right.addWidget(self.retry, 0, Qt.AlignmentFlag.AlignLeft)
         self.attribution = text_label("", 11, "#a2aa95")
         right.addWidget(self.attribution)
-        body.addWidget(self.lyrics_panel, 4)
+        body.addWidget(self.lyrics_panel, 1)
         self.message = text_label(size=12, color="#e1cba0")
         self.message.setWordWrap(True)
         self.message.hide()
@@ -349,8 +355,7 @@ class MusicPlayerDialog(QDialog):
     def toggle_lyrics(self, visible):
         self.home.music_lyrics_visible = visible
         self.lyrics_panel.setVisible(visible)
-        self.body.setStretch(0, 0 if visible else 1)
-        self.body.setStretch(2, 0 if visible else 1)
+        self.body_container.setFixedWidth(min(1000 if visible else 470, self.width() - 80))
         self.lyrics_toggle.setText("Lyrics ausblenden" if visible else "Lyrics einblenden")
         self.lyrics_toggle.setAccessibleName(self.lyrics_toggle.text())
         self.body.activate()
@@ -427,6 +432,8 @@ class MusicPlayerDialog(QDialog):
         self.root.setContentsMargins(24 if compact else 40, 16 if compact else 24,
                                     24 if compact else 40, 16 if compact else 28)
         self.root.setSpacing(8 if compact else 20)
+        self.body_container.setFixedWidth(min(1000 if self.lyrics_toggle.isChecked() else 470,
+                                             self.width() - (48 if compact else 80)))
         side = max(130, min(340, self.height() - 380, int(self.width() * .34)))
         self.artwork.setFixedSize(side, side)
         self.lyrics.doItemsLayout()

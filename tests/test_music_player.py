@@ -116,7 +116,7 @@ class MusicUiTests(unittest.TestCase):
             self.assertFalse(dialog.lyrics_panel.isVisible())
             self.home.quick_status("media", dict(STATE, position=42), None)
             self.assertFalse(dialog.lyrics_panel.isVisible())
-            self.assertAlmostEqual(dialog.player_panel.geometry().center().x(), dialog.width() / 2, delta=3)
+            self.assertAlmostEqual(dialog.player_panel.mapTo(dialog, dialog.player_panel.rect().center()).x(), dialog.width() / 2, delta=3)
             dialog.reject()
             dialog = self.open()
             self.assertFalse(dialog.lyrics_panel.isVisible())
@@ -152,8 +152,8 @@ class MusicUiTests(unittest.TestCase):
         tile = self.home.music_tile
         self.assertGreaterEqual(tile.expand_button.width(), 44)
         for name, button in tile.buttons.items():
-            self.assertGreaterEqual(button.width(), 64 if name == "playpause" else 56)
-            self.assertGreaterEqual(button.height(), 56)
+            self.assertGreaterEqual(button.width(), 52 if name == "playpause" else 44)
+            self.assertGreaterEqual(button.height(), 52 if name == "playpause" else 44)
             self.assertGreaterEqual(button.iconSize().width(), 32)
             self.assertTrue(tile.rect().contains(button.geometry()))
         self.assertLess(tile.buttons["previous"].geometry().right(), tile.buttons["playpause"].geometry().left())

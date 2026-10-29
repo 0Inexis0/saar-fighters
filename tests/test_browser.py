@@ -22,11 +22,11 @@ class BrowserTests(unittest.TestCase):
     def test_flatpak_launch_preserves_urls_and_local_game_address(self):
         for url in ("https://www.youtube.com/", "http://127.0.0.1:18741", "https://example.org/a b"):
             with patch.object(browser.shutil, "which", return_value=None):
-                self.assertEqual(browser.browser_command(url), ["flatpak", "run", "com.brave.Browser", "--new-window", url])
+                self.assertEqual(browser.browser_command(url), ["flatpak", "run", "com.brave.Browser", "--start-fullscreen", "--new-window", url])
 
     def test_native_brave_is_preferred(self):
         with patch.object(browser.shutil, "which", side_effect=lambda name: "/usr/bin/brave" if name == "brave" else None):
-            self.assertEqual(browser.browser_command("https://example.org"), ["brave", "--new-window", "https://example.org"])
+            self.assertEqual(browser.browser_command("https://example.org"), ["brave", "--start-fullscreen", "--new-window", "https://example.org"])
 
     def test_first_install_checks_success_before_setting_default(self):
         calls = []
