@@ -85,6 +85,41 @@ class MaintenanceUITests(unittest.TestCase):
         self.assertFalse(window.isVisible())
         window.deleteLater()
 
+    def test_missing_packages_can_be_installed_from_page(self):
+        page = self.page()
+        page.show_status({"ssh": {"installed": False, "state": "unknown"}, "internet": {"state": "missing"}})
+        self.assertTrue(page.action.isEnabled())
+        self.assertEqual(page.action_name, "install-remote")
+        page.preview = False
+        with patch.object(page.worker, "start") as start:
+            page.begin()
+            start.assert_called_once_with("pkexec", [HELPER, "install-remote"])
+        page.preview = True
+        page.completed(1, QProcess.ExitStatus.NormalExit)
+
+    def test_login_requires_valid_url_and_never_runs_as_root(self):
+        page = self.page()
+        page.preview = False
+        from PySide6.QtGui import QDesktopServices
+        for url, expected in (("https://login.tailscale.com/a/test", True), ("file:///etc/passwd", False)):
+            page.show_status({"ssh": {"state": "active"}, "internet": {"state": "NeedsLogin", "auth_url": url}})
+            self.assertEqual(page.login.isEnabled(), expected)
+            with patch.object(QDesktopServices, "openUrl", return_value=True) as browser:
+                page.open_login()
+                self.assertEqual(browser.called, expected)
+
+    def test_internet_action_is_privileged_and_blocks_all_controls(self):
+        page = self.page()
+        page.show_status({"ssh": {"state": "active"}, "internet": {"state": "Stopped"}})
+        page.preview = False
+        with patch.object(page.worker, "start") as start:
+            page.begin_internet()
+            start.assert_called_once_with("pkexec", [HELPER, "connect-internet"])
+            self.assertFalse(page.internet.isEnabled())
+            self.assertFalse(page.login.isEnabled())
+        page.preview = True
+        page.completed(0, QProcess.ExitStatus.NormalExit)
+
 
 if __name__ == "__main__":
     unittest.main()

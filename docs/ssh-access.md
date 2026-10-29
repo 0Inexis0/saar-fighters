@@ -1,4 +1,4 @@
-# SSH-Fernwartung im lokalen Netz
+# SSH-Fernwartung im LAN und über Tailscale
 
 Der System-Update-Knopf installiert OpenSSH und richtet einen eigenen Dienst
 `saar-sshd.service` auf Port **2222** ein. Die Anmeldung erfolgt als `wartung`
@@ -50,8 +50,12 @@ Die Fernwartung lässt sich dort mit Wartungspasswort ein- und ausschalten.
 [Wiederherstellung und separate Wartungsoberfläche](maintenance.md).
 
 - Zugelassen sind IPv4-Quellen aus `10.0.0.0/8`, `172.16.0.0/12`,
-  `192.168.0.0/16` und localhost. IPv6 ist für diesen Dienst deaktiviert.
-- Es werden keine Routerfreigaben, Cloud-Tunnel oder VPN-Konten eingerichtet.
+  `192.168.0.0/16`, dem Tailscale-Bereich `100.64.0.0/10` und localhost.
+  IPv6 ist für diesen Dienst deaktiviert.
+- Optional verbindet die Fernwartungsseite Tailscale für Zugriff außerhalb des
+  LANs. Beide Rechner benötigen dasselbe Tailscale-Netz und die passende
+  Zugriffsfreigabe für Port 2222. Die Browseranmeldung erfolgt durch den Nutzer.
+  Es werden keine Routerfreigaben oder Konten automatisch eingerichtet.
 - Der normale `sshd`-Dienst und seine Konfiguration werden nicht verändert.
 - Im Live-ISO bleibt die Fernwartung aus. Sie wird auf installierten Systemen
   beim Systemupdate aktiviert und startet anschließend auch nach einem Neustart.

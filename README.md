@@ -37,6 +37,9 @@ Bei Übernahme für eigene Rechner diesen öffentlichen Schlüssel ersetzen.
 
 **Wartung in den Einstellungen:** SSH-Status und lokale Adressen anzeigen,
 Fernwartung ein- oder ausschalten und die vorherige Oberfläche wiederherstellen.
+Für Zugriff außerhalb des LANs lässt sich Tailscale auf derselben Seite verbinden.
+Die Pakete kommen per Systemupdate; beide Rechner müssen einmalig beim selben
+Tailscale-Netz angemeldet werden. Der SSH-Wartungsschlüssel bleibt erforderlich.
 [Bedienung und Wiederherstellung](docs/maintenance.md).
 
 > **ISO:** x86_64 · 4 GB RAM · 32 GB Laufwerk · USB ab 8 GB · Secure Boot aus. Der grafische Installer löscht das ausgewählte Ziellaufwerk.

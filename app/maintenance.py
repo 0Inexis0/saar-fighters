@@ -2,9 +2,12 @@
 """Maintenance pages and a standalone rescue window, independent of Home."""
 import json
 import sys
-from PySide6.QtCore import QProcess, Qt, QTimer
+from urllib.parse import urlparse
+from PySide6.QtCore import QProcess, Qt, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel, QMessageBox,
-                              QPlainTextEdit, QPushButton, QTabWidget, QVBoxLayout)
+                              QPlainTextEdit, QPushButton, QTabWidget, QVBoxLayout,
+                              QScrollArea, QWidget)
 
 HELPER = "/usr/local/libexec/saar-maintenance"
 
@@ -25,10 +28,17 @@ class MaintenancePage(QDialog):
         self.snapshot = {}
         self.action_name = None
         self.setWindowTitle("Fernwartung" if section == "remote" else "Wiederherstellung")
-        body = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        content = QWidget()
+        body = QVBoxLayout(content)
+        scroll.setWidget(content)
+        outer.addWidget(scroll, 1)
         body.setSpacing(14)
         body.addWidget(text_label(self.windowTitle(), 26))
-        explanation = ("Zugriff auf diesen Rechner im gleichen WLAN oder LAN. Die Anmeldung erfolgt ausschließlich mit dem hinterlegten SSH-Schlüssel."
+        explanation = ("Zugriff im LAN oder über das Internet mit Tailscale. Beide Rechner brauchen dasselbe Tailscale-Netz und den hinterlegten SSH-Schlüssel."
                        if section == "remote" else
                        "Stellt die vor dem letzten Oberflächenupdate gesicherte Version wieder her. Persönliche Dateien, Anmeldungen, SSH und Systempakete bleiben erhalten.")
         body.addWidget(text_label(explanation))
@@ -48,6 +58,21 @@ class MaintenancePage(QDialog):
         row.addWidget(self.action, 1)
         row.addWidget(self.reload)
         body.addLayout(row)
+        self.internet_details = text_label("", 12)
+        body.addWidget(self.internet_details)
+        internet_row = QHBoxLayout()
+        self.internet = QPushButton("Internet verbinden")
+        self.login = QPushButton("Tailscale-Anmeldung öffnen")
+        self.internet.setEnabled(False)
+        self.login.setEnabled(False)
+        for button in (self.internet, self.login):
+            button.setAutoDefault(False)
+            button.setVisible(section == "remote")
+            internet_row.addWidget(button)
+        self.internet_details.setVisible(section == "remote")
+        body.addLayout(internet_row)
+        self.internet.clicked.connect(self.begin_internet)
+        self.login.clicked.connect(self.open_login)
         self.message = text_label("")
         body.addWidget(self.message)
         self.output = QPlainTextEdit()
@@ -58,7 +83,7 @@ class MaintenancePage(QDialog):
         body.addStretch()
         self.back = QPushButton("Zurück")
         self.back.clicked.connect(self.reject)
-        body.addWidget(self.back)
+        outer.addWidget(self.back)
         for button in (self.back, self.action, self.reload):
             button.setAutoDefault(False)
         self.reader = QProcess(self)
@@ -92,6 +117,8 @@ class MaintenancePage(QDialog):
             self.summary.setText("Wartung noch nicht verfügbar")
             self.details.setText("Bitte zuerst ein Systemupdate ausführen und die Einstellungen erneut öffnen.")
             self.action.setEnabled(False)
+            self.internet.setEnabled(False)
+            self.login.setEnabled(False)
 
     def read_status(self, code, exit_status):
         if self.closed or self.busy:
@@ -103,12 +130,16 @@ class MaintenancePage(QDialog):
         except (ValueError, TypeError, KeyError):
             self.summary.setText("Status konnte nicht gelesen werden")
             self.action.setEnabled(False)
+            self.internet.setEnabled(False)
+            self.login.setEnabled(False)
 
     def show_status(self, data):
         self.snapshot = data
         live = data.get("live", False)
         if self.section == "remote":
             ssh = data.get("ssh", {})
+            vpn = data.get("internet", {})
+            installed = ssh.get("installed", True)
             active = ssh.get("state") == "active"
             self.summary.setText("Fernwartung aktiv" if active else
                                  "Fernwartung ausgeschaltet" if ssh.get("state") in ("inactive", "failed") or ssh.get("disabled") else
@@ -121,6 +152,29 @@ class MaintenancePage(QDialog):
             self.action_name = "disable-ssh" if active else "enable-ssh"
             self.action.setText("Fernwartung ausschalten" if active else "Fernwartung einschalten")
             self.action.setEnabled(not live and ssh.get("state") != "unknown")
+            if not installed:
+                self.summary.setText("Fernwartungspakete fehlen")
+                self.action_name = "install-remote"
+                self.action.setText("Fernwartungspakete installieren")
+                self.action.setEnabled(not live)
+            state = vpn.get("state", "missing")
+            self.internet_name = "disconnect-internet" if state == "Running" else "connect-internet"
+            self.internet.setText("Internet trennen" if state == "Running" else "Internet verbinden")
+            self.internet.setEnabled(not live and installed)
+            if state == "missing":
+                self.internet_name = "install-remote"
+                self.internet.setText("Tailscale installieren")
+                self.internet.setEnabled(not live)
+            descriptions = {"missing": "Tailscale wird mit den Fernwartungspaketen installiert.",
+                            "Running": "Tailscale verbunden." if active else "Tailscale verbunden, aber SSH ist ausgeschaltet.",
+                            "NeedsLogin": "Einmalig im Browser bei Tailscale anmelden.",
+                            "NeedsMachineAuth": "Bitte dieses Gerät in der Tailscale-Verwaltung freigeben.",
+                            "Stopped": "Internet-Fernwartung getrennt."}
+            details = descriptions.get(state, "Tailscale ist noch nicht verbunden.")
+            if state == "Running":
+                details += "\n" + "\n".join(f"ssh -p 2222 wartung@{ip}" for ip in vpn.get("addresses", []))
+            self.internet_details.setText(details)
+            self.login.setEnabled(not live and bool(self.login_url()))
         else:
             surface = data.get("surface", {})
             short = lambda value: value[:12] if len(value) == 40 else value
@@ -138,13 +192,33 @@ class MaintenancePage(QDialog):
         self.back.setEnabled(not busy)
         self.reload.setEnabled(not busy)
         self.action.setEnabled(not busy)
+        self.internet.setEnabled(False)
+        self.login.setEnabled(False)
 
-    def begin(self):
-        if self.busy or not self.action.isEnabled():
+    def login_url(self):
+        url = self.snapshot.get("internet", {}).get("auth_url", "")
+        parsed = urlparse(url)
+        return url if (parsed.scheme == "https" and parsed.netloc == "login.tailscale.com"
+                       and parsed.path.startswith("/a/")) else ""
+
+    def open_login(self):
+        if not self.busy and not self.preview and self.login_url():
+            if not QDesktopServices.openUrl(QUrl(self.login_url())):
+                self.message.setText("Browser konnte nicht geöffnet werden.")
+
+    def begin_internet(self):
+        if self.busy or not self.internet.isEnabled():
+            return
+        self.begin(operation=self.internet_name)
+
+    def begin(self, checked=False, operation=None):
+        if self.busy or (operation is None and not self.action.isEnabled()):
             return
         if self.preview:
             self.message.setText("Vorschau: Es wurde nichts verändert.")
             return
+        if operation:
+            self.action_name = operation
         if self.action_name == "restore":
             answer = QMessageBox.question(self, "Oberfläche wiederherstellen?",
                 "Die aktuelle Oberfläche wird durch die angezeigte Sicherung ersetzt. Danach ist ein Neustart nötig.\n\n"

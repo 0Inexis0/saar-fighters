@@ -29,6 +29,7 @@ INTEGRATIONS = (
     ("system/desktoptheme/saar-olive", "usr/share/plasma/desktoptheme/saar-olive", None),
 )
 REQUIRED = (
+    "system/update_packages.py",
     "app/maintenance.py", "system/maintenance.py", "system/saar-maintenance",
     "system/de.saarfighters.maintenance.policy", "system/de.saarfighters.Maintenance.desktop",
     "system/configure_ssh.py", "system/diagnose_firefox.py",
@@ -215,6 +216,8 @@ def main():
         report(f"Saar-Fighters {revision[:12]} installiert. Oberfläche und Taskleiste werden beim Neustart aktiviert.")
     else:
         report(f"Saar-Fighters {revision[:12]} ist bereits aktuell.")
+    # Also usable independently of pacman when system package updates fail.
+    subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/maintenance.py", "install"], check=True)
 
 
 if __name__ == "__main__":

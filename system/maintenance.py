@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 
@@ -231,14 +232,73 @@ def restore_surface(root=Path("/"), expected=None):
 
 
 def command(args):
-    return subprocess.run(args, capture_output=True, text=True, timeout=12,
+    return subprocess.run(args, capture_output=True, text=True, timeout=30,
                           env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"})
+
+
+def internet_status(root=Path("/"), run=command):
+    result = {"state": "missing", "addresses": [], "auth_url": ""}
+    if not (root / "usr/bin/tailscale").is_file():
+        return result
+    result["state"] = "unavailable"
+    try:
+        response = run(["tailscale", "status", "--json"])
+        data = json.loads(response.stdout or "{}")
+        result["state"] = data.get("BackendState", "unavailable")
+        for value in data.get("TailscaleIPs", []):
+            address = ipaddress.ip_address(value)
+            if address in ipaddress.ip_network("100.64.0.0/10"):
+                result["addresses"].append(str(address))
+        url = data.get("AuthURL", "")
+        parsed = urlparse(url)
+        if (parsed.scheme == "https" and parsed.netloc == "login.tailscale.com"
+                and parsed.path.startswith("/a/")):
+            result["auth_url"] = url
+    except (OSError, ValueError, TypeError, AttributeError, subprocess.SubprocessError):
+        result["state"] = "unavailable"
+    return result
+
+
+def set_internet(enabled, root=Path("/"), run=command):
+    if (root / "etc/saar-live").exists():
+        raise RuntimeError("Internet-Fernwartung ist im Live-System ausgeschaltet.")
+    if not (root / "usr/bin/tailscale").is_file():
+        raise RuntimeError("Tailscale fehlt. Bitte zuerst Fernwartungspakete installieren.")
+    if enabled:
+        set_ssh(True, root, run)
+        result = run(["systemctl", "enable", "--now", "tailscaled.service"])
+        if result.returncode:
+            raise RuntimeError("Tailscale konnte nicht gestartet werden.")
+        result = run(["tailscale", "up", "--timeout=15s"])
+        state = internet_status(root, run)
+        if state["state"] == "Running":
+            print("Tailscale verbunden. Der Wartungsrechner muss im selben Tailscale-Netz angemeldet sein.")
+        elif state["auth_url"]:
+            print("Bitte jetzt auf Tailscale-Anmeldung öffnen klicken und das Gerät im Browser bestätigen.")
+        else:
+            raise RuntimeError("Tailscale-Verbindung nicht hergestellt. " + (result.stderr or result.stdout)[-1500:])
+    else:
+        result = run(["tailscale", "down"])
+        if result.returncode:
+            raise RuntimeError("Tailscale konnte nicht getrennt werden.")
+        print("Tailscale getrennt. Lokale Fernwartung bleibt separat schaltbar.")
+
+
+def install_remote(root=Path("/")):
+    if (root / "etc/saar-live").exists():
+        raise RuntimeError("Fernwartung ist im Live-System ausgeschaltet.")
+    # Keep Arch packages consistent. Never skip signature verification or perform
+    # a partial upgrade to work around a broken Firefox package.
+    subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/update_packages.py"], check=True)
+    subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_ssh.py"], check=True)
 
 
 def status(root=Path("/"), run=command):
     result = {"surface": read_json(root / "var/lib/saar-fighters/surface-status.json"),
               "live": (root / "etc/saar-live").exists(), "ssh": {"state": "unknown", "addresses": [],
-              "disabled": (root / "etc/saar-fighters/ssh/disabled").exists()}}
+              "installed": (root / "usr/bin/ssh-keygen").is_file() and (root / "usr/bin/sshd").is_file(),
+              "disabled": (root / "etc/saar-fighters/ssh/disabled").exists()},
+              "internet": internet_status(root, run)}
     try:
         check = run(["systemctl", "show", "saar-sshd.service", "--property=ActiveState", "--value"])
         if check.returncode == 0:
@@ -282,7 +342,8 @@ def set_ssh(enabled, root=Path("/"), run=command):
 
 def main():
     args = sys.argv[1:]
-    if not args or args[0] not in ("status", "install", "restore", "enable-ssh", "disable-ssh"):
+    if not args or args[0] not in ("status", "install", "restore", "enable-ssh", "disable-ssh",
+                                 "connect-internet", "disconnect-internet", "install-remote"):
         raise SystemExit("Unzulässige Wartungsaktion")
     action = args[0]
     if action == "restore":
@@ -299,6 +360,10 @@ def main():
         install_tools()
     elif action == "restore":
         restore_surface(expected=args[1])
+    elif action == "install-remote":
+        install_remote()
+    elif action in ("connect-internet", "disconnect-internet"):
+        set_internet(action == "connect-internet")
     else:
         set_ssh(action == "enable-ssh")
 

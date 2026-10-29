@@ -18,6 +18,39 @@ Weitere Systemupdates respektieren die Auswahl. Bestehende SSH-Sitzungen können
 weiterlaufen; neue Verbindungen werden nach dem Stoppen nicht mehr angenommen.
 Beim Einschalten bleiben Schlüsselanmeldung und die bisherigen Netzgrenzen erhalten.
 
+## Zugriff über das Internet
+
+Das Update installiert OpenSSH und Tailscale. Unter **Fernwartung** auf
+**Internet verbinden** klicken, das Wartungspasswort eingeben und anschließend
+**Tailscale-Anmeldung öffnen** wählen. Die Anmeldung erfolgt im Browser des
+normalen Desktopbenutzers. Ein eigenes Tailscale-Konto und gegebenenfalls die
+Gerätefreigabe in dessen Verwaltung sind erforderlich. Auch der Wartungsrechner
+muss mit diesem Tailscale-Netz verbunden sein. Eine Repo-Aktualisierung kann diese
+persönliche Anmeldung nicht ersetzen.
+
+Die Seite zeigt die eigene Tailscale-IPv4-Adresse und den SSH-Aufruf auf Port 2222.
+Der Dienst akzeptiert zusätzlich `100.64.0.0/10`, weiterhin ausschließlich als
+`wartung` mit dem hinterlegten Schlüssel. Tailscale-Zugriffsregeln müssen Port 2222
+zwischen den beiden Geräten erlauben. Tailscale SSH auf Port 22 wird nicht aktiviert.
+Routerfreigaben werden nicht eingerichtet. **Internet trennen** führt `tailscale down`
+aus und trennt alle Tailscale-Verbindungen dieses Geräts; LAN-SSH bleibt separat
+schaltbar. **Fernwartung ausschalten** stoppt den SSH-Dienst für beide Zugangswege.
+Tailscale wird erst durch den ausdrücklichen Verbindungsklick gestartet und für
+weitere Neustarts aktiviert. Ein bloßes Update meldet kein Gerät bei Tailscale an.
+
+Fehlen Pakete, bietet die Seite deren Installation mit vollständigem Arch-Update
+an. Der neue Updater aktualisiert zuerst die Oberfläche und installiert die
+Wartungswerkzeuge, bevor Paketupdates starten. Ein Signaturfehler löst genau einen
+erneuten Download mit leerem temporärem Cache und `geo.mirror.pkgbuild.com` aus.
+Signaturregeln und die dauerhafte Mirrorliste bleiben unverändert. Scheitert auch
+dieser Versuch, wird das Update als fehlgeschlagen gemeldet.
+
+**Migration bei blockiertem alten Updater:** Ein noch alter Updater kann weiterhin
+vor dem GitHub-Schritt scheitern. Nach Veröffentlichung der neuen Version einmal
+`sudo python /usr/local/libexec/saar-update-custom.py` ausführen. Beim ersten Lauf
+ersetzt der alte Helfer nur die Dateien. Danach das Dashboard-Systemupdate starten;
+nun läuft die neue Reihenfolge einschließlich der Wartungseinrichtung.
+
 ## Oberfläche wiederherstellen
 
 Vor einem Oberflächenupdate wird der vorherige Projektstand unter

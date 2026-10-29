@@ -23,6 +23,8 @@ rsync
 squashfs-tools
 sudo
 git
+openssh
+tailscale
 qemu-guest-agent
 spice-vdagent
 networkmanager
