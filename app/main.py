@@ -34,6 +34,7 @@ CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 
 PATHS = {
     "gamemodes": '<path d="M7 7h10a4 4 0 0 1 4 3l1 6a2 2 0 0 1-3.4 1.7L16 15H8l-2.6 2.7A2 2 0 0 1 2 16l1-6a4 4 0 0 1 4-3Z"/><path d="M6 11h4M8 9v4"/><circle cx="16" cy="10" r=".7"/><circle cx="18" cy="12" r=".7"/>',
+    "bell": '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
     "expand": '<path d="M14 3h7v7M21 3l-7 7M10 21H3v-7M3 21l7-7"/>',
     "collapse": '<path d="m5 9 7 7 7-7"/>',
     "shuffle": '<path d="M3 6h3c5 0 7 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 4-2 6-6s4-6 6-6h3m-4-4 4 4-4 4"/>',
@@ -148,6 +149,25 @@ class StatusValue(QLabel):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.refresh_text()
+
+
+
+class StatusControl(QPushButton):
+    """Compact, keyboard-accessible status icon with full details on hover."""
+    def __init__(self, symbol, title, action):
+        super().__init__()
+        self.symbol = symbol
+        self.setObjectName("statusControl")
+        self.setFixedSize(44, 44)
+        self.setIconSize(QSize(22, 22))
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.set_status(title)
+        self.clicked.connect(action)
+
+    def set_status(self, description, active=True):
+        self.setIcon(icon(self.symbol, "#e6e9df" if active else "#919480", 22))
+        self.setAccessibleName(description)
+        self.setToolTip(description)
 
 
 class Tile(QPushButton):
@@ -613,11 +633,11 @@ class AppsPage(QWidget):
             self.home.show_dashboard()
         else:
             self.feedback.setText(self.home.feedback.text())
-            self.feedback.setVisible(bool(self.feedback.text()))
+            self.feedback.hide()
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, home):
+    def __init__(self, home, section="wifi"):
         super().__init__(home)
         self.home = home
         self.page = None
@@ -636,31 +656,41 @@ class SettingsDialog(QDialog):
         navigation.setContentsMargins(16, 24, 16, 16)
         navigation.setSpacing(6)
         navigation.addWidget(label("Einstellungen", "font-size: 21px; font-weight: 700;"))
-        navigation.addSpacing(12)
         self.nav_buttons = {}
-        for symbol, title, action in (
-            ("wifi", "WLAN", "wifi"),
-            ("bluetooth", "Bluetooth", "bluetooth"),
-            ("sound", "Lautstärke", "sound"),
-            ("brightness", "Bildschirm", "brightness"),
-            ("power", "Energie", "energy"),
-            ("settings", "Systemübersicht", "system"),
-            ("settings", "Meldungen", "notifications"),
-            ("update", "Updates", "updates"),
-            ("settings", "Fernwartung", "remote"),
-            ("restart", "Wiederherstellen", "recovery"),
-            ("settings", "Systemprotokolle", "logs"),
+        for category, entries in (
+            ("Verbindungen", (
+                ("wifi", "WLAN", "wifi"),
+                ("bluetooth", "Bluetooth", "bluetooth"),
+            )),
+            ("Gerät & Alltag", (
+                ("sound", "Lautstärke", "sound"),
+                ("brightness", "Bildschirm", "brightness"),
+                ("power", "Energie", "energy"),
+                ("settings", "Meldungen", "notifications"),
+            )),
+            ("System & Wartung", (
+                ("settings", "Systemübersicht", "system"),
+                ("update", "Updates", "updates"),
+                ("settings", "Fernwartung", "remote"),
+                ("restart", "Wiederherstellen", "recovery"),
+                ("settings", "Systemprotokolle", "logs"),
+            )),
         ):
-            button = QPushButton(title)
-            button.setObjectName("settingsNav")
-            button.setIcon(button_icon(symbol, 22))
-            button.setIconSize(QSize(22, 22))
-            button.setCheckable(True)
-            button.setAutoDefault(False)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.clicked.connect(lambda checked=False, section=action: self.select_section(section))
-            self.nav_buttons[action] = button
-            navigation.addWidget(button)
+            navigation.addSpacing(12)
+            heading = label(category, "font-size: 12px; font-weight: 600; color: #b9b8a7;")
+            heading.setContentsMargins(12, 0, 0, 2)
+            navigation.addWidget(heading)
+            for symbol, title, action in entries:
+                button = QPushButton(title)
+                button.setObjectName("settingsNav")
+                button.setIcon(button_icon(symbol, 22))
+                button.setIconSize(QSize(22, 22))
+                button.setCheckable(True)
+                button.setAutoDefault(False)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.clicked.connect(lambda checked=False, section=action: self.select_section(section))
+                self.nav_buttons[action] = button
+                navigation.addWidget(button)
         navigation.addStretch()
         self.back_button = QPushButton("Startseite")
         self.back_button.setIcon(icon("home", "#c3b48b", 20))
@@ -680,7 +710,7 @@ class SettingsDialog(QDialog):
         self.content.setWidgetResizable(True)
         self.content.setFrameShape(QFrame.Shape.NoFrame)
         layout.addWidget(self.content, 1)
-        self.select_section("wifi")
+        self.select_section(section)
 
     def page_back_button(self):
         return self.page.close_button if isinstance(self.page, UpdateDialog) else self.page.back
@@ -796,12 +826,17 @@ class Home(QWidget):
         brand = QLabel("SAAR-FIGHTERS\nAS e.V.")
         brand.setStyleSheet("font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #c3b48b;")
         header.addWidget(brand)
-        header.addSpacing(20)
+        header.addStretch()
+        header.setSpacing(6)
         self.device_client = DeviceClient(self, preview)
         self.notifications = NotificationCenter(self, preview)
-        self.notification_button = QPushButton("Meldungen")
+        self.notification_button = StatusControl("bell", "Mitteilungen öffnen", self.show_notifications)
+        self.notification_badge = QLabel(self.notification_button)
+        self.notification_badge.setObjectName("notificationBadge")
+        self.notification_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.notification_badge.setGeometry(23, 0, 21, 18)
+        self.notification_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_button.setAccessibleName("Benachrichtigungszentrale öffnen")
-        self.notification_button.clicked.connect(self.show_notifications)
         self.notifications.changed.connect(self.update_notification_count)
         self.update_notification_count()
         self.system_timer = QTimer(self)
@@ -810,31 +845,21 @@ class Home(QWidget):
         self.system_timer.start()
         QTimer.singleShot(1500, self.check_system_notifications)
         self.status_values = []
-        status_row = QHBoxLayout()
-        status_row.setSpacing(6)
-        for title, symbol in (("Netzwerk", "wifi"), ("Bluetooth", "bluetooth"),
-                              ("Netzteil", "charger"), ("Akku", "battery")):
-            frame = QFrame()
-            frame.setObjectName("statusChip")
-            box = QVBoxLayout(frame)
-            box.setContentsMargins(10, 9, 10, 9)
-            box.setSpacing(2)
-            heading = QHBoxLayout()
-            heading.setSpacing(5)
-            symbol_label = QLabel()
-            symbol_label.setPixmap(icon(symbol, "#b6b393", 14).pixmap(QSize(14, 14)))
-            heading.addWidget(symbol_label)
-            heading.addWidget(label(title, "font-size: 10px; color: #b6b393;"))
-            heading.addStretch()
-            box.addLayout(heading)
-            value = StatusValue()
-            value.setStyleSheet("font-size: 12px; font-weight: 600;")
-            value.setText("Wird geprüft …")
-            value.setMinimumWidth(0)
-            box.addWidget(value)
-            status_row.addWidget(frame, 1)
-            self.status_values.append(value)
-        header.addLayout(status_row, 1)
+        for title, symbol, section in (("Netzwerk", "wifi", "wifi"),
+                                       ("Bluetooth", "bluetooth", "bluetooth"),
+                                       ("Netzteil", "charger", "energy"),
+                                       ("Akku", "battery", "energy")):
+            control = StatusControl(symbol, f"{title}: Wird geprüft …",
+                                    lambda checked=False, target=section: self.show_status_section(target))
+            header.addWidget(control)
+            self.status_values.append(control)
+        self.battery_percentage = label("", "font-size: 12px; color: #b6b393;")
+        header.addWidget(self.battery_percentage)
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setFixedHeight(22)
+        separator.setStyleSheet("color: #50523e;")
+        header.addWidget(separator)
         header.addWidget(self.notification_button)
         shell.addWidget(self.status_header)
         shell.addWidget(self.page_area, 1)
@@ -988,19 +1013,36 @@ class Home(QWidget):
     def update_status(self, status):
         self.notifications.devices(status)
         values = status_labels(status)
-        for widget, text, prefix in zip(self.status_values, values, ("", "Bluetooth", "Netzteil", "Akku")):
-            widget.setText(text.removeprefix(prefix).lstrip(": ") if prefix else text)
         network = status.get("network", {})
+        bluetooth = status.get("bluetooth", {})
+        power = status.get("power", {})
+        active = (not network.get("error") and network.get("state", 0) >= 50,
+                  not bluetooth.get("error") and bluetooth.get("powered", False),
+                  not power.get("error") and power.get("plugged") is True,
+                  not power.get("error") and power.get("percentage") is not None)
+        for widget, text, enabled in zip(self.status_values, values, active):
+            widget.set_status(text, enabled)
         connectivity = {0: "Internetstatus nicht geprüft", 1: "Kein Internet",
                         2: "Anmeldung im Browser erforderlich", 3: "Internet eingeschränkt",
                         4: "Internet erreichbar"}.get(network.get("connectivity", 0), "")
-        self.network.setToolTip(network.get("name", "") + "\n" + connectivity)
-        names = [d["name"] for d in status.get("bluetooth", {}).get("devices", []) if d.get("connected")]
-        self.status_values[1].setToolTip("\n".join(names))
+        self.network.setToolTip("\n".join(filter(None, (values[0], network.get("name", ""), connectivity))))
+        names = [d["name"] for d in bluetooth.get("devices", []) if d.get("connected")]
+        self.status_values[1].setToolTip("\n".join([values[1], *names]))
+        pct = power.get("percentage")
+        self.battery_percentage.setText(f"{round(pct)} %" if isinstance(pct, (int, float)) and not power.get("error") else "")
+        self.battery_percentage.setToolTip(values[3])
 
     def update_notification_count(self):
         count = self.notifications.unread
-        self.notification_button.setText(f"Meldungen ({count})" if count else "Meldungen")
+        self.notification_badge.setText(str(count) if count < 100 else "99+")
+        self.notification_badge.setVisible(count > 0)
+        self.notification_button.set_status(
+            f"Mitteilungen öffnen: {count} ungelesen" if count else "Mitteilungen öffnen: Keine ungelesenen Meldungen")
+
+    def show_status_section(self, section):
+        dialog = SettingsDialog(self, section)
+        dialog.exec()
+        dialog.deleteLater()
 
     def check_system_notifications(self):
         if not self.preview:
@@ -1008,8 +1050,7 @@ class Home(QWidget):
             self.notifications.disk(data["disk_free"], data["disk_total"])
 
     def show_notifications(self):
-        dialog = SettingsDialog(self)
-        dialog.select_section("notifications")
+        dialog = SettingsDialog(self, "notifications")
         dialog.exec()
         dialog.deleteLater()
 
@@ -1075,7 +1116,9 @@ class Home(QWidget):
 
     def set_feedback(self, text):
         self.feedback.setText(text)
-        self.feedback.setVisible(bool(text))
+        self.feedback.hide()
+        if text:
+            self.notifications.add("Mitteilung", text)
         if self.music_dialog:
             self.music_dialog.set_message(text)
 
@@ -1226,7 +1269,10 @@ QPushButton#settingsNav { background: transparent; text-align: left; border-radi
 QPushButton#settingsNav:hover, QPushButton#settingsNav:focus { background: #353b2b; }
 QPushButton#settingsNav:checked { background: #3c4430; color: #f3f1e6; }
 QPushButton#settingsNav:disabled { color: #929382; }
-QFrame#statusChip { background: #303329; border: none; border-radius: 12px; }
+QPushButton#statusControl { background: transparent; padding: 0; min-height: 0; border-radius: 8px; }
+QPushButton#statusControl:hover, QPushButton#statusControl:focus { background: #454a36; }
+QPushButton#statusControl:pressed { background: #53583e; }
+QLabel#notificationBadge { background: #c3b48b; color: #24261b; border-radius: 7px; font-size: 10px; font-weight: 800; }
 QComboBox { background: #363b2e; color: #eeece1; border: none; border-radius: 6px; padding: 5px; min-height: 24px; }
 QComboBox QAbstractItemView { background: #292e23; color: #eeece1; selection-background-color: #50563c; }
 QCheckBox { spacing: 8px; }
