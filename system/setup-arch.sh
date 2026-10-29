@@ -44,7 +44,7 @@ source_dir=$stage/source
 revision=$(git -C "$source_dir" rev-parse HEAD)
 packages=(plasma-desktop kscreen powerdevil power-profiles-daemon systemsettings plasma-nm plasma-pa bluedevil breeze-gtk sddm xorg-server
     mesa pyside6 python-dbus-next qt6-svg qt6-tools qt6-translations upower libpulse
-    networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
+    networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber rtkit kwallet
     dolphin konsole flatpak vlc vlc-plugins-all noto-fonts
     noto-fonts-emoji ttf-dejavu polkit-kde-agent sudo xdg-utils)
 pacman -S --needed --noconfirm "${packages[@]}"

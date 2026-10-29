@@ -84,7 +84,7 @@ LockOnResume=false
 EOF
 cat > "$club/.config/kwalletrc" <<'EOF'
 [Wallet]
-Enabled=false
+Enabled=true
 EOF
 cat > "$club/.config/baloofilerc" <<'EOF'
 [Basic Settings]

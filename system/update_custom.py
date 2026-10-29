@@ -29,6 +29,7 @@ INTEGRATIONS = (
     ("system/desktoptheme/saar-olive", "usr/share/plasma/desktoptheme/saar-olive", None),
 )
 REQUIRED = (
+    "system/configure_wallet.py",
     "app/system_settings.py", "app/system_status.py", "app/notifications.py", "system/energy_profile.py",
     "system/update_packages.py",
     "system/remove_tailscale.py",
@@ -225,6 +226,7 @@ def main():
     subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/maintenance.py", "install"], check=True)
     subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/remove_tailscale.py"], check=True)
     subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_browser.py"], check=True)
+    subprocess.run(["runuser", "-u", "saar", "--", "/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_wallet.py"], check=True)
 
 
 if __name__ == "__main__":

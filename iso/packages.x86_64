@@ -51,6 +51,8 @@ qt6-translations
 upower
 libpulse
 pipewire
+rtkit
+kwallet
 pipewire-pulse
 wireplumber
 dolphin

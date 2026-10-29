@@ -2,6 +2,7 @@
 set -euo pipefail
 [[ $(id -un) == saar ]] || exit 0
 mkdir -p "$HOME/.local/state"
+/usr/bin/python -I /opt/saar-fighters/system/configure_wallet.py
 if flatpak info --system com.brave.Browser >/dev/null 2>&1; then
     xdg-mime default com.brave.Browser.desktop text/html x-scheme-handler/http x-scheme-handler/https
 fi
