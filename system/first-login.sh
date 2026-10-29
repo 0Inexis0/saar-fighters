@@ -2,6 +2,9 @@
 set -euo pipefail
 [[ $(id -un) == saar ]] || exit 0
 mkdir -p "$HOME/.local/state"
+if flatpak info --system com.brave.Browser >/dev/null 2>&1; then
+    xdg-mime default com.brave.Browser.desktop text/html x-scheme-handler/http x-scheme-handler/https
+fi
 # Apply before any layout-marker early return, including updated laptops.
 if [[ $(/usr/bin/python /opt/saar-fighters/system/configure_display.py) == changed ]]; then
     systemctl --user try-restart plasma-powerdevil.service || \

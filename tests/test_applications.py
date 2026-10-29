@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
-from applications import Application, SHORTCUTS, application_catalog
+from applications import Application, SHORTCUTS, GAMEMODES, application_catalog, gamemode_catalog
 from main import Home, STYLE
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtTest import QTest
@@ -16,12 +16,13 @@ from PySide6.QtWidgets import QApplication
 
 
 class CatalogTests(unittest.TestCase):
-    def test_only_the_six_original_apps_are_included(self):
+    def test_apps_and_gamemodes_are_separate(self):
         with patch.dict(os.environ, {"XDG_DATA_DIRS": "/usr/share:/var/lib/flatpak/exports/share"}):
             apps = application_catalog()
         self.assertEqual([app.id for app in apps],
-                         ["rocket", "spotify", "web", "youtube", "files", "club"])
+                         ["spotify", "web", "youtube", "files", "club"])
         self.assertEqual(apps, list(SHORTCUTS))
+        self.assertEqual([app.id for app in gamemode_catalog()], ["rocket"])
 
 
 class AppsPageTests(unittest.TestCase):
@@ -91,9 +92,9 @@ class AppsPageTests(unittest.TestCase):
 
     def test_app_launch_returns_to_dashboard_and_failure_stays_on_apps(self):
         self.home.preview = False
-        with patch("main.shutil.which", return_value="firefox"), patch.object(QProcess, "start") as start:
-            self.dialog.open_app(SHORTCUTS[2])
-            start.assert_called_once_with("firefox", ["--new-window", "https://start.duckduckgo.com"])
+        with patch("main.shutil.which", return_value="brave"), patch.object(QProcess, "start") as start:
+            self.dialog.open_app(next(app for app in SHORTCUTS if app.id == "web"))
+            start.assert_called_once_with("brave", ["--new-window", "https://start.duckduckgo.com"])
             self.assertIs(self.home.pages.currentWidget(), self.home.dashboard)
         self.home.show_apps()
         with patch("main.shutil.which", return_value=None):
@@ -140,12 +141,28 @@ class AppsPageTests(unittest.TestCase):
         QTest.keyClick(self.dialog.search, Qt.Key.Key_Escape)
         self.assertTrue(self.home.dashboard.isVisible())
 
-    def test_six_apps_fit_one_page_without_unneeded_page_controls(self):
+    def test_apps_fit_one_page_without_unneeded_page_controls(self):
         self.catalog.return_value = application_catalog()
         self.dialog.reload_apps()
         self.app.processEvents()
-        self.assertEqual(len(self.dialog.tiles), 6)
+        self.assertEqual(len(self.dialog.tiles), 5)
         self.assertFalse(self.dialog.navigation.isVisible())
+
+    def test_gamemodes_has_rocket_and_returns_with_escape(self):
+        self.home.show_dashboard()
+        QTest.mouseClick(self.home.tiles["gamemodes"], Qt.MouseButton.LeftButton)
+        page = self.home.gamemodes_page
+        self.app.processEvents()
+        self.assertTrue(page.isVisible())
+        self.assertEqual(list(page.tiles), ["rocket"])
+        self.assertEqual(page.count_label.text(), "1 Gamemode")
+        with patch.object(QProcess, "start") as start:
+            QTest.mouseClick(page.tiles["rocket"], Qt.MouseButton.LeftButton)
+            self.assertIn("Rocket Launch", page.feedback.text())
+            start.assert_not_called()
+        QTest.keyClick(page.search, Qt.Key.Key_Escape)
+        self.assertTrue(self.home.dashboard.isVisible())
+        self.assertTrue(self.home.tiles["gamemodes"].hasFocus())
 
 
 if __name__ == "__main__":

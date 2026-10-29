@@ -1,5 +1,7 @@
 """Music artwork, asynchronous content, expanded controls and lyric following."""
 import json
+import math
+import struct
 import os
 from pathlib import Path
 import sys
@@ -18,6 +20,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 from main import Home, STYLE
 from media_content import ArtworkLoader, LyricsLoader, RemoteContent, lyrics_result, parse_lrc
+from music_visualizer import spectrum, OutputMonitor, FREQUENCIES
 
 
 STATE = {"player": "org.mpris.MediaPlayer2.spotify", "player_name": "Spotify",
@@ -30,6 +33,14 @@ STATE = {"player": "org.mpris.MediaPlayer2.spotify", "player_name": "Spotify",
 
 
 class LyricsTests(unittest.TestCase):
+    def test_visualizer_silence_and_frequency_response(self):
+        self.assertEqual(spectrum(bytes(1024)), [0.] * len(FREQUENCIES))
+        tone = struct.pack('<512h', *(round(10000 * math.sin(2 * math.pi * 1000 * i / 8000))
+                                    for i in range(512)))
+        bands = spectrum(tone)
+        self.assertEqual(bands.index(max(bands)), FREQUENCIES.index(1000))
+        self.assertGreater(max(bands), .8)
+
     def test_lrc_multiple_timestamps_offset_and_plain_text(self):
         self.assertEqual(parse_lrc("[ar:Test]\n[offset:-500]\n[00:02.50][01:03.125]<00:02.00>Ä & <Text>\n[00:00.20]"),
                          [(0, ""), (2, "Ä & <Text>"), (62.625, "Ä & <Text>")])
@@ -96,6 +107,40 @@ class MusicUiTests(unittest.TestCase):
             second = self.open()
             self.assertIsNot(first, second)
             request.assert_not_called()
+
+    def test_lyrics_toggle_survives_updates_and_reopening(self):
+        dialog = self.open()
+        with patch.object(self.home, "quick_action") as action:
+            dialog.lyrics_toggle.click()
+            self.app.processEvents()
+            self.assertFalse(dialog.lyrics_panel.isVisible())
+            self.home.quick_status("media", dict(STATE, position=42), None)
+            self.assertFalse(dialog.lyrics_panel.isVisible())
+            self.assertAlmostEqual(dialog.player_panel.geometry().center().x(), dialog.width() / 2, delta=3)
+            dialog.reject()
+            dialog = self.open()
+            self.assertFalse(dialog.lyrics_panel.isVisible())
+            dialog.lyrics_toggle.click()
+            self.assertTrue(dialog.lyrics_panel.isVisible())
+            self.assertEqual(dialog.active_line, 2)
+            action.assert_not_called()
+
+    def test_visualizer_decays_on_pause_and_cleanup_stops_timers(self):
+        dialog = self.open()
+        dialog.bands = [1.] * len(FREQUENCIES)
+        dialog.set_spectrum([1.] * len(FREQUENCIES))
+        for _ in range(60):
+            dialog.animate()
+        self.assertLess(max(dialog.bands), .001)
+        dialog.reject()
+        self.assertFalse(dialog.animation.isActive())
+        self.assertFalse(dialog.timer.isActive())
+
+    def test_preview_never_starts_audio_capture(self):
+        monitor = OutputMonitor(preview=True)
+        with patch.object(monitor.process, "start") as start:
+            monitor.start()
+            start.assert_not_called()
 
     def test_tile_transport_does_not_expand(self):
         self.home.music_tile.buttons["playpause"].click()

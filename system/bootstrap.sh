@@ -7,9 +7,9 @@ printf 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n' > /etc/pacman
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 8/' /etc/pacman.conf
 pacman -Syu --noconfirm --needed qemu-guest-agent
 systemctl enable --now qemu-guest-agent
-pacman -S --noconfirm --needed plasma-desktop plasma-nm plasma-pa bluedevil \
+pacman -S --noconfirm --needed plasma-desktop kscreen powerdevil systemsettings plasma-nm plasma-pa bluedevil \
   breeze-gtk sddm xorg-server mesa pyside6 python-dbus-next qt6-svg qt6-tools qt6-translations upower libpulse \
-  networkmanager pipewire pipewire-pulse wireplumber firefox firefox-i18n-de \
+  networkmanager pipewire pipewire-pulse wireplumber \
   dolphin konsole flatpak vlc vlc-plugins-all noto-fonts noto-fonts-emoji \
   ttf-dejavu polkit-kde-agent spice-vdagent spectacle sudo
 grep -qxF 'de_DE.UTF-8 UTF-8' /etc/locale.gen || printf '\nde_DE.UTF-8 UTF-8\n' >> /etc/locale.gen

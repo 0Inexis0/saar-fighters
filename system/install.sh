@@ -107,24 +107,6 @@ LANG=de_DE.UTF-8
 LANGUAGE=de
 EOF
 chown -R saar:saar "$club/.config" "$club/.local" "$club/Musik" "$club/Dokumente"
-mkdir -p /usr/lib/firefox/distribution
-cat > /usr/lib/firefox/distribution/policies.json <<'EOF'
-{
-  "policies": {
-    "RequestedLocales": ["de"],
-    "DisableAppUpdate": true,
-    "DisableTelemetry": true,
-    "DisableFirefoxStudies": true,
-    "DontCheckDefaultBrowser": true,
-    "OverrideFirstRunPage": "",
-    "OverridePostUpdatePage": "",
-    "Preferences": {
-      "browser.aboutwelcome.enabled": false,
-      "browser.shell.checkDefaultBrowser": false
-    }
-  }
-}
-EOF
 # Authentication is explicit, including on distributions with different defaults.
 cat > /etc/polkit-1/rules.d/40-saar-admin.rules <<'EOF'
 polkit.addAdminRule(function(action, subject) {

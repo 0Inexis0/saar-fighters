@@ -1,4 +1,4 @@
-"""Offline Airsoft game host and Firefox launcher, using only Python's stdlib."""
+"""Offline Airsoft game host and Brave launcher, using only Python's stdlib."""
 import argparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -212,10 +212,12 @@ def main():
         with GameServer(("127.0.0.1", PORT)) as server:
             server.serve_forever()
     else:
-        if not shutil.which("firefox"):
-            raise RuntimeError("Firefox fehlt. Bitte die Vereinsadministration kontaktieren.")
+        from browser import browser_command
+        command = browser_command(f"http://127.0.0.1:{PORT}")
+        if not shutil.which(command[0]):
+            raise RuntimeError("Brave fehlt. Bitte zuerst das Systemupdate ausführen.")
         ensure_server()
-        subprocess.run(["firefox", "--new-window", f"http://127.0.0.1:{PORT}"], check=True)
+        subprocess.run(command, check=True)
 
 
 if __name__ == "__main__":

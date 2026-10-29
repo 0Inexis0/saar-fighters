@@ -119,6 +119,12 @@ class PairingAgent(ServiceInterface):
 class Backend:
     def __init__(self, bus):
         self.bus = bus
+        self.audio_router = AudioRouter(lambda *args: self.pactl(*args))
+        self.audio_preferences = Path.home() / ".config/saar-fighters/audio.json"
+        try:
+            self.auto_audio = json.loads(self.audio_preferences.read_text()).get("auto_bluetooth", True) is True
+        except (OSError, ValueError, AttributeError):
+            self.auto_audio = True
         self.agent = PairingAgent(self)
         self.agent_registered = False
         self.pairing_devices = set()
@@ -329,7 +335,7 @@ class Backend:
         return out.decode()
 
     async def audio(self):
-        return await AudioRouter(self.pactl).status()
+        return {**await self.audio_router.status(), "auto_bluetooth": self.auto_audio}
 
     async def status(self):
         values = await asyncio.gather(self.network(), self.bluetooth(), self.power(), return_exceptions=True)
@@ -354,6 +360,18 @@ class Backend:
         if group not in self.locks:
             raise ValueError("Diese Aktion ist nicht verfügbar.")
         async with self.locks[group]:
+            if operation == "audio_autoswitch":
+                enabled = args.get("enabled")
+                if type(enabled) is not bool:
+                    raise ValueError("Ungültiger Schalterzustand.")
+                self.audio_preferences.parent.mkdir(parents=True, exist_ok=True)
+                temporary = self.audio_preferences.with_suffix(".tmp")
+                temporary.write_text(json.dumps({"auto_bluetooth": enabled}))
+                temporary.replace(self.audio_preferences)
+                self.auto_audio = enabled
+                return await self.audio()
+            if operation == "audio_output_volume":
+                return await self.audio_router.set_output_volume(args.get("name"), args.get("value"))
             if operation == "audio":
                 return await self.audio()
             if operation == "brightness":
@@ -424,6 +442,17 @@ async def serve():
     backend = Backend(bus)
     tasks = set()
 
+    async def watch_audio():
+        while True:
+            try:
+                async with backend.locks["audio"]:
+                    await backend.audio_router.auto_bluetooth(backend.auto_audio)
+            except Exception:
+                print("Bluetooth-Audiowechsel derzeit nicht verfügbar.", file=sys.stderr, flush=True)
+            await asyncio.sleep(3)
+
+    watcher = asyncio.create_task(watch_audio())
+
     async def dispatch(request):
         try:
             # Pairing and Wi-Fi authentication have their own bounded waits.
@@ -445,6 +474,8 @@ async def serve():
             tasks.add(task)
             task.add_done_callback(tasks.discard)
     finally:
+        watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
         for task in tasks:
             task.cancel()
         bus.disconnect()

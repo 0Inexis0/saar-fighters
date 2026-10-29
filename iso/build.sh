@@ -53,7 +53,7 @@ INITRD
 export FLATPAK_SYSTEM_DIR="$rootfs/var/lib/flatpak"
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 flatpak config --system --set languages 'de;en'
-flatpak install --system --noninteractive flathub com.spotify.Client
+flatpak install --system --noninteractive flathub com.spotify.Client com.brave.Browser
 flatpak list --system --columns=application,version,branch > "$build_dir/out/flatpak-packages.txt"
 # Archiso intentionally normalizes overlay modes. Flatpak's runtime contains
 # executables and a content-addressed repository whose exact modes must survive.

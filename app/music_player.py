@@ -1,13 +1,15 @@
 """Expanded, touch-friendly now-playing view shared with the desktop tile."""
 from bisect import bisect_right
+import math
 import time
 
-from PySide6.QtCore import QEvent, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QFrame, QHBoxLayout, QLabel,
                               QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
                               QSlider, QStyledItemDelegate, QVBoxLayout, QWidget)
 from media_content import LyricsLoader
+from music_visualizer import OutputMonitor, FREQUENCIES
 
 
 class ArtworkView(QWidget):
@@ -153,6 +155,12 @@ class MusicPlayerDialog(QDialog):
         self.active_line = -1
         self.follow_after = 0
         self.tint = QColor("#464936")
+        self.palette_colors = [QColor(c) for c in ("#8f4671", "#455b99", "#bb7958")]
+        self.phase = 0.
+        self.bands = [0.] * len(FREQUENCIES)
+        self.targets = list(self.bands)
+        self.monitor = OutputMonitor(self, preview=home.preview)
+        self.monitor.changed.connect(self.set_spectrum)
         self.setObjectName("expandedMusicPlayer")
         self.setWindowTitle("Musikplayer · Saar-Fighters")
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
@@ -161,9 +169,14 @@ class MusicPlayerDialog(QDialog):
         self.setMinimumSize(760, 500)
         self.setStyleSheet("""
             QDialog#expandedMusicPlayer { background: #22261f; }
+            QPushButton { background: rgba(255,255,255,22); color: #ffffff; }
+            QPushButton:hover, QPushButton:focus { background: rgba(255,255,255,42); }
+            QSlider::groove:horizontal { height: 4px; background: rgba(255,255,255,45); border-radius: 2px; }
+            QSlider::sub-page:horizontal { background: #eeecef; border-radius: 2px; }
+            QSlider::handle:horizontal { background: white; width: 12px; margin: -4px 0; border-radius: 6px; }
             QPushButton#transport { background: transparent; padding: 0; border-radius: 22px; min-height: 44px; max-height: 44px; }
-            QPushButton#transport:hover, QPushButton#transport:focus { background: #545847; }
-            QPushButton#transport:checked { background: #62684b; }
+            QPushButton#transport:hover, QPushButton#transport:focus { background: rgba(255,255,255,35); }
+            QPushButton#transport:checked { background: rgba(255,255,255,55); }
             QPushButton#transport:disabled { background: transparent; }
             QPushButton#largePlay { background: #eeece1; border-radius: 30px; padding: 0; min-height: 60px; max-height: 60px; }
             QPushButton#largePlay:hover, QPushButton#largePlay:focus { background: #ffffff; }
@@ -172,7 +185,7 @@ class MusicPlayerDialog(QDialog):
             QListWidget#lyrics::item { background: transparent; padding: 13px 8px; border: none; }
             QListWidget#lyrics::item:hover { background: #3d4335; border-radius: 10px; }
             QScrollBar:vertical { width: 7px; background: transparent; }
-            QScrollBar::handle:vertical { background: #626653; border-radius: 3px; min-height: 30px; }
+            QScrollBar::handle:vertical { background: rgba(255,255,255,65); border-radius: 3px; min-height: 30px; }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
         """)
         self.root = QVBoxLayout(self)
@@ -187,11 +200,21 @@ class MusicPlayerDialog(QDialog):
         top.addStretch()
         self.source = text_label("JETZT LÄUFT", 12, "#c2c5b4", True)
         top.addWidget(self.source)
+        top.addSpacing(20)
+        self.lyrics_toggle = QPushButton("Lyrics ausblenden")
+        self.lyrics_toggle.setCheckable(True)
+        self.lyrics_toggle.setChecked(getattr(home, "music_lyrics_visible", True))
+        self.lyrics_toggle.setAutoDefault(False)
+        self.lyrics_toggle.setMinimumHeight(44)
+        self.lyrics_toggle.toggled.connect(self.toggle_lyrics)
+        top.addWidget(self.lyrics_toggle)
         self.root.addLayout(top)
         body = QHBoxLayout()
+        self.body = body
         body.setSpacing(46)
         self.root.addLayout(body, 1)
         left = QWidget()
+        self.player_panel = left
         left.setMinimumWidth(290)
         left.setMaximumWidth(470)
         player = QVBoxLayout(left)
@@ -257,12 +280,12 @@ class MusicPlayerDialog(QDialog):
         volume_row.addWidget(self.volume_value)
         player.addLayout(volume_row)
         player.addStretch()
-        body.addWidget(left, 1)
-        divider = QFrame()
-        divider.setFixedWidth(1)
-        divider.setStyleSheet("background: #555b45;")
-        body.addWidget(divider)
-        right = QVBoxLayout()
+        body.addStretch(1)
+        body.addWidget(left, 3)
+        body.addStretch(1)
+        self.lyrics_panel = QWidget()
+        right = QVBoxLayout(self.lyrics_panel)
+        right.setContentsMargins(0, 0, 0, 0)
         right.setSpacing(12)
         lyric_heading = QHBoxLayout()
         lyric_heading.addWidget(text_label("Lyrics", 21, bold=True))
@@ -302,7 +325,7 @@ class MusicPlayerDialog(QDialog):
         right.addWidget(self.retry, 0, Qt.AlignmentFlag.AlignLeft)
         self.attribution = text_label("", 11, "#a2aa95")
         right.addWidget(self.attribution)
-        body.addLayout(right, 1)
+        body.addWidget(self.lyrics_panel, 4)
         self.message = text_label(size=12, color="#e1cba0")
         self.message.setWordWrap(True)
         self.message.hide()
@@ -315,10 +338,43 @@ class MusicPlayerDialog(QDialog):
         self.timer.setInterval(200)
         self.timer.timeout.connect(self.tick)
         self.timer.start()
+        self.animation = QTimer(self)
+        self.animation.setInterval(33)
+        self.animation.timeout.connect(self.animate)
+        self.animation.start()
         self.finished.connect(self.cleanup)
         self.update_state(home.media_state)
+        self.toggle_lyrics(self.lyrics_toggle.isChecked())
+
+    def toggle_lyrics(self, visible):
+        self.home.music_lyrics_visible = visible
+        self.lyrics_panel.setVisible(visible)
+        self.body.setStretch(0, 0 if visible else 1)
+        self.body.setStretch(2, 0 if visible else 1)
+        self.lyrics_toggle.setText("Lyrics ausblenden" if visible else "Lyrics einblenden")
+        self.lyrics_toggle.setAccessibleName(self.lyrics_toggle.text())
+        self.body.activate()
+        self.update_labels()
+        if visible:
+            self.scroll_active()
+
+    def set_spectrum(self, values):
+        self.targets = values
+
+    def animate(self):
+        playing = self.state.get("playing", False)
+        if playing:
+            self.phase += .006
+        if not playing or time.monotonic() - self.monitor.last_sample > .5:
+            self.targets = [0.] * len(self.bands)
+        self.bands = [value + (target - value) * (.55 if target > value else .12)
+                      for value, target in zip(self.bands, self.targets)]
+        if self.isVisible():
+            self.update()
 
     def cleanup(self):
+        self.animation.stop()
+        self.monitor.stop()
         self.timer.stop()
         self.loader.cancel()
         self.volume.delay.stop()
@@ -332,14 +388,39 @@ class MusicPlayerDialog(QDialog):
             small = pixmap.toImage().scaled(1, 1, Qt.AspectRatioMode.IgnoreAspectRatio,
                                             Qt.TransformationMode.SmoothTransformation)
             self.tint = small.pixelColor(0, 0)
+        if pixmap.isNull():
+            self.palette_colors = [QColor(c) for c in ("#8f4671", "#455b99", "#bb7958")]
+        else:
+            colors = pixmap.toImage().scaled(3, 3, Qt.AspectRatioMode.IgnoreAspectRatio,
+                                            Qt.TransformationMode.SmoothTransformation)
+            self.palette_colors = [colors.pixelColor(x, y) for x, y in ((0, 0), (2, 1), (1, 2))]
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        gradient = QLinearGradient(0, 0, self.width(), self.height())
-        gradient.setColorAt(0, self.tint.darker(230))
-        gradient.setColorAt(1, QColor("#20251f"))
-        painter.fillRect(self.rect(), gradient)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor("#17131e"))
+        energy = sum(self.bands[:4]) / 4
+        for index, color in enumerate(self.palette_colors):
+            angle = self.phase + index * 2.1
+            center = QPointF(self.width() * (.5 + .34 * math.sin(angle)),
+                             self.height() * (.5 + .38 * math.cos(angle * .8)))
+            glow = QRadialGradient(center, max(self.width(), self.height()) * (.7 + energy * .15))
+            bright = QColor(color)
+            bright.setAlpha(175)
+            clear = QColor(color)
+            clear.setAlpha(0)
+            glow.setColorAt(0, bright)
+            glow.setColorAt(1, clear)
+            painter.fillRect(self.rect(), glow)
+        painter.fillRect(self.rect(), QColor(10, 8, 18, 75))
+        # A quiet spectrum at the bottom, driven exclusively by output PCM.
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(255, 255, 255, 100))
+        for index, value in enumerate(self.bands):
+            x = self.width() / 2 + (index - (len(self.bands) - 1) / 2) * 10
+            height = 2 + value * 24
+            painter.drawRoundedRect(QRectF(x, self.height() - 8 - height, 4, height), 2, 2)
 
     def resizeEvent(self, event):
         compact = self.height() < 650
@@ -372,6 +453,10 @@ class MusicPlayerDialog(QDialog):
         self.sample_time = time.monotonic()
         self.update_labels()
         playing = bool(state.get("playing"))
+        if playing:
+            self.monitor.start()
+        else:
+            self.monitor.stop()
         source = state.get("player_name", "Kein Player")
         self.source.setText(f"{source} · {'Läuft' if playing else 'Pausiert' if state.get('player') else 'Keine Wiedergabe'}")
         for name, button in self.buttons.items():
@@ -427,7 +512,7 @@ class MusicPlayerDialog(QDialog):
         if active != self.active_line:
             self.active_line = active
             for index in range(self.lyrics.count()):
-                self.lyrics.item(index).setForeground(QColor("#fffdf2" if index == active else "#929b86"))
+                self.lyrics.item(index).setForeground(QColor("#ffffff" if index == active else "#ada6b7"))
             if time.monotonic() >= self.follow_after:
                 self.scroll_active()
         if self.follow_after and time.monotonic() >= self.follow_after:

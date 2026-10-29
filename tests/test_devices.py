@@ -294,7 +294,8 @@ class DeviceScreenTests(unittest.TestCase):
             self.assertEqual(request.call_args.args[:2], ("bt_scan", {"enabled": False}))
 
     def test_website_uses_official_url(self):
-        self.assertEqual(self.home.command_for("club"), ["firefox", "--new-window", CLUB_WEBSITE])
+        self.assertEqual(self.home.command_for("club")[-2:], ["--new-window", CLUB_WEBSITE])
+        self.assertNotEqual(self.home.command_for("club")[0], "firefox")
         self.assertEqual(CLUB_WEBSITE, "https://www.saarfighters-as.de/")
 
     def test_late_reply_after_close_is_ignored(self):

@@ -84,6 +84,38 @@ class RoutingTests(unittest.IsolatedAsyncioTestCase):
         self.server = SoundServer()
         self.router = AudioRouter(self.server)
 
+    async def test_bluetooth_switches_on_arrival_but_respects_manual_selection(self):
+        await self.router.auto_bluetooth()
+        self.server.sinks.append(sink(4, "bluez_output.box"))
+        await self.router.auto_bluetooth()
+        self.assertEqual(self.server.default, "bluez_output.box")
+        await self.router.select(["2"])
+        await self.router.auto_bluetooth()
+        self.assertEqual(self.server.default, "hdmi")
+        self.server.sinks = [s for s in self.server.sinks if s["index"] != 4]
+        await self.router.auto_bluetooth()
+        self.server.sinks.append(sink(4, "bluez_output.box"))
+        await self.router.auto_bluetooth()
+        self.assertEqual(self.server.default, "bluez_output.box")
+
+    async def test_disabled_autoswitch_does_not_replay_old_arrivals(self):
+        await self.router.auto_bluetooth()
+        self.server.sinks.append(sink(4, "bluez_output.box"))
+        await self.router.auto_bluetooth(False)
+        await self.router.auto_bluetooth(True)
+        self.assertEqual(self.server.default, "box")
+
+    async def test_individual_volume_does_not_change_other_outputs_or_route(self):
+        await self.router.select(["1", "2"])
+        default = self.server.default
+        await self.router.set_output_volume("hdmi", 23)
+        state = await self.router.status()
+        self.assertEqual([o["volume"] for o in state["outputs"]], [50, 23, 50])
+        self.assertEqual(self.server.default, default)
+        for name, value in (("missing", 40), ("box", -1), ("box", 101), ("box", True)):
+            with self.assertRaises(ValueError):
+                await self.router.set_output_volume(name, value)
+
     async def test_multiple_outputs_route_running_apps_and_expose_shared_controls(self):
         result = await self.router.select(["1", "2"])
         self.assertIn("2 Audioausgänge", result["message"])
@@ -232,6 +264,18 @@ class AudioScreenTests(unittest.TestCase):
         self.home.close()
         self.home.deleteLater()
         self.flush()
+
+    def test_individual_slider_preserves_other_box_levels_and_pending_selection(self):
+        self.sheet.list.item(1).setCheckState(Qt.CheckState.Checked)
+        slider = self.sheet.output_sliders[1]
+        slider.setValue(31)
+        self.assertFalse(self.sheet.back.isEnabled())
+        self.assertFalse(self.sheet.choose.isEnabled())
+        slider.commit()
+        self.flush()
+        self.assertEqual(self.sheet.checked_ids(), ["1", "2"])
+        self.assertEqual([s.value() for s in self.sheet.output_sliders], [55, 31, 55])
+        self.assertTrue(self.sheet.back.isEnabled())
 
     def test_choose_multiple_outputs_and_restore_on_reopen(self):
         self.sheet.list.item(1).setCheckState(Qt.CheckState.Checked)

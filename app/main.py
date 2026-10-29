@@ -12,16 +12,20 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget,
+    QLineEdit, QComboBox, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget,
 )
-from applications import Application, SHORTCUTS, application_catalog
-from devices import AudioSheet, BluetoothSheet, BrightnessSheet, DeviceClient, WifiSheet, label
+from applications import Application, SHORTCUTS, GAMEMODES, application_catalog, gamemode_catalog
+from devices import AudioSheet, BluetoothSheet, BrightnessSheet, DeviceClient, WifiSheet, LogsSheet, label
 from hardware import status_labels
 from slideshow import IdleSlideshow
 from media_content import ArtworkLoader
-from music_player import ArtworkView, MusicPlayerDialog
+from music_player import ArtworkView, MusicPlayerDialog, PlayerSlider, clock_text
 from runtime_health import record as record_health, categories as error_categories
+from browser import browser_command
 from maintenance import MaintenancePage
+from system_settings import DisplaySheet, EnergySheet, SystemSheet, NotificationsSheet
+from notifications import NotificationCenter
+from system_status import snapshot as system_snapshot
 
 HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "assets"
@@ -29,6 +33,7 @@ SOCKET = f"saar-home-{getattr(os, 'getuid', lambda: 0)()}"
 CLUB_WEBSITE = "https://www.saarfighters-as.de/"
 
 PATHS = {
+    "gamemodes": '<path d="M7 7h10a4 4 0 0 1 4 3l1 6a2 2 0 0 1-3.4 1.7L16 15H8l-2.6 2.7A2 2 0 0 1 2 16l1-6a4 4 0 0 1 4-3Z"/><path d="M6 11h4M8 9v4"/><circle cx="16" cy="10" r=".7"/><circle cx="18" cy="12" r=".7"/>',
     "expand": '<path d="M14 3h7v7M21 3l-7 7M10 21H3v-7M3 21l7-7"/>',
     "collapse": '<path d="m5 9 7 7 7-7"/>',
     "shuffle": '<path d="M3 6h3c5 0 7 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 4-2 6-6s4-6 6-6h3m-4-4 4 4-4 4"/>',
@@ -73,13 +78,14 @@ def icon(name, color="#e6e9df", size=40):
 
 
 BUTTON_ICONS = {
+    "gamemodes": (),
     "apps": (),
     "rocket": (),
     "youtube": (),
     "settings": ("preferences-system",),
     "brightness": ("display-brightness",),
     "music": ("com.spotify.Client", "spotify"),
-    "web": ("firefox",),
+    "web": ("com.brave.Browser", "brave-browser", "brave"),
     "folder": ("org.kde.dolphin", "system-file-manager"),
     "wifi": ("network-wireless", "preferences-system-network-wireless"),
     "sound": ("preferences-desktop-sound", "audio-volume-high"),
@@ -184,9 +190,12 @@ class Tile(QPushButton):
 
 class MusicTile(QFrame):
     """Now-playing information and controls for the selected session player."""
-    def __init__(self, action, expand):
+    def __init__(self, action, expand, home=None):
         super().__init__()
         self.expand = expand
+        self.home = home
+        self.state = {}
+        self.seek_identity = None
         self.setObjectName("musicTile")
         self.setAccessibleName("Musikplayer")
         self.setMinimumSize(220, 220)
@@ -250,9 +259,76 @@ class MusicTile(QFrame):
             self.buttons[name] = button
         controls.addStretch()
         layout.addLayout(controls)
+        self.position = PlayerSlider("Wiedergabeposition", 1000)
+        self.position.setMinimumHeight(24)
+        self.position.sliderPressed.connect(self.capture_seek)
+        self.position.actionTriggered.connect(lambda _: self.capture_seek())
+        self.position.committed.connect(self.seek)
+        layout.addWidget(self.position)
+        self.times = label("--:-- / --:--", "font-size: 11px;")
+        layout.addWidget(self.times)
+        output_row = QHBoxLayout()
+        self.outputs = QComboBox()
+        self.outputs.setMinimumWidth(0)
+        self.outputs.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.outputs.setAccessibleName("Audioausgang schnell wechseln")
+        self.outputs.activated.connect(self.choose_output)
+        output_row.addWidget(self.outputs, 1)
+        self.volume = PlayerSlider("Ausgangslautstärke")
+        self.volume.setMinimumHeight(24)
+        self.volume.setMinimumWidth(65)
+        self.volume.setMaximumWidth(110)
+        self.volume.committed.connect(lambda value: self.home.quick_action("audio", "volume", value=value) if self.home else None)
+        output_row.addWidget(self.volume, 1)
+        layout.addLayout(output_row)
         self.update_state({})
 
+    def capture_seek(self):
+        self.seek_identity = tuple(self.state.get(key) for key in ("player", "track_id", "duration"))
+
+    def seek(self, value):
+        if self.home and self.seek_identity and self.seek_identity == tuple(self.state.get(key) for key in ("player", "track_id", "duration")):
+            player, track, duration = self.seek_identity
+            self.home.quick_action("media", "seek", player=player, track_id=track, position=value / 1000 * duration)
+
+    def choose_output(self, index):
+        target = self.outputs.itemData(index)
+        if self.home and target is not None:
+            self.home.quick_action("audio", "output", id=target)
+
+    def update_audio(self, data, error=None):
+        if self.outputs.view().isVisible():
+            return
+        self.outputs.blockSignals(True)
+        self.outputs.clear()
+        outputs = data.get("outputs", []) if not error else []
+        selected = [o for o in outputs if o.get("selected", o.get("default"))]
+        if len(selected) > 1:
+            self.outputs.addItem(f"{len(selected)} Boxen gemeinsam", None)
+        for output in outputs:
+            self.outputs.addItem(output.get("description", "Audioausgang"), output.get("id"))
+            if len(selected) == 1 and output in selected:
+                self.outputs.setCurrentIndex(self.outputs.count() - 1)
+        self.outputs.blockSignals(False)
+        self.outputs.setEnabled(bool(outputs))
+        control = data.get("control")
+        self.volume.setEnabled(bool(control) and not error)
+        self.volume.reflect(min(100, control.get("volume", 0)) if control else 0)
+        self.volume.setToolTip(f"Ausgangslautstärke: {self.volume.value()} %")
+
     def update_state(self, data, error=None):
+        data = data if not error else {}
+        identity = tuple(data.get(key) for key in ("player", "track_id", "duration"))
+        if identity != tuple(self.state.get(key) for key in ("player", "track_id", "duration")):
+            self.position.delay.stop()
+            self.position.setSliderDown(False)
+            self.seek_identity = None
+        self.state = dict(data)
+        duration = data.get("duration", 0)
+        position = data.get("position")
+        self.position.setEnabled(bool(data.get("can_seek") and duration))
+        self.position.reflect(round(position / duration * 1000) if position is not None and duration else 0)
+        self.times.setText(f"{clock_text(position)} / {clock_text(duration or None)}")
         if error or not data.get("player"):
             self.source.setText("Nicht verbunden" if error else "Keine Wiedergabe")
             self.track.setText("Player nicht erreichbar" if error else "Bereit für Musik")
@@ -276,6 +352,7 @@ class MusicTile(QFrame):
     def set_busy(self):
         for button in self.buttons.values():
             button.setEnabled(False)
+        self.position.setEnabled(False)
 
     def resizeEvent(self, event):
         self.artwork.setGeometry(self.rect())
@@ -297,6 +374,7 @@ class MusicTile(QFrame):
 class UpdateDialog(QDialog):
     def __init__(self, parent, preview=False):
         super().__init__(parent)
+        self.notifications = getattr(getattr(parent, "home", parent), "notifications", None)
         self.setWindowTitle("System aktualisieren")
         self.resize(740, 490)
         layout = QVBoxLayout(self)
@@ -351,13 +429,18 @@ class UpdateDialog(QDialog):
         elif code in (126, 127):
             self.state.setText("Update nicht freigegeben oder abgebrochen. Es wurde nicht erfolgreich abgeschlossen.")
             self.start.setEnabled(True)
+
         else:
             self.state.setText("Update fehlgeschlagen. Bitte die Ausgabe dem Administrator zeigen.")
             self.start.setEnabled(True)
+        if self.notifications:
+            self.notifications.add("Systemupdate", self.state.text())
 
     def process_error(self, error):
         if error == QProcess.ProcessError.FailedToStart:
             self.state.setText("Die Update-Verwaltung konnte nicht gestartet werden.")
+            if self.notifications:
+                self.notifications.add("Systemupdate nicht gestartet", self.state.text())
             self.close_button.setEnabled(True)
             self.start.setEnabled(True)
 
@@ -387,7 +470,7 @@ class AppTile(QPushButton):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(5)
         layout.addStretch()
-        if application.id in {app.id for app in SHORTCUTS}:
+        if application.id in {app.id for app in SHORTCUTS + GAMEMODES}:
             app_icon = button_icon(application.icon)
         elif Path(application.icon).is_absolute():
             app_icon = QIcon(application.icon)
@@ -414,9 +497,11 @@ class AppTile(QPushButton):
 
 
 class AppsPage(QWidget):
-    def __init__(self, home):
+    def __init__(self, home, gamemodes=False):
         super().__init__(home)
         self.home = home
+        self.gamemodes = gamemodes
+        self.category = "Gamemodes" if gamemodes else "Apps"
         self.setObjectName("appsPage")
         self.page = 0
         self.columns = 3
@@ -427,7 +512,7 @@ class AppsPage(QWidget):
         layout.setContentsMargins(32, 24, 32, 24)
         layout.setSpacing(20)
         header = QHBoxLayout()
-        header.addWidget(label("Apps", "font-size: 28px; font-weight: 700;"))
+        header.addWidget(label(self.category, "font-size: 28px; font-weight: 700;"))
         self.count_label = label("", "color: #b7b6a6;")
         header.addWidget(self.count_label)
         header.addStretch()
@@ -437,8 +522,8 @@ class AppsPage(QWidget):
         layout.addLayout(header)
         search_row = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Apps suchen …")
-        self.search.setAccessibleName("Apps suchen")
+        self.search.setPlaceholderText(f"{self.category} suchen …")
+        self.search.setAccessibleName(f"{self.category} suchen")
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.filter_apps)
         search_row.addWidget(self.search, 1)
@@ -446,7 +531,7 @@ class AppsPage(QWidget):
         self.grid = QGridLayout()
         self.grid.setSpacing(14)
         layout.addLayout(self.grid, 1)
-        self.empty_label = label("Keine Apps gefunden. Versuche einen anderen Suchbegriff.")
+        self.empty_label = label(f"Keine {self.category} gefunden. Versuche einen anderen Suchbegriff.")
         self.empty_label.setWordWrap(True)
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.feedback = label("", "color: #c3b48b; font-size: 12px;")
@@ -480,7 +565,7 @@ class AppsPage(QWidget):
         return max(1, (len(self.filtered) + self.page_size - 1) // self.page_size)
 
     def reload_apps(self):
-        self.applications = application_catalog()
+        self.applications = gamemode_catalog() if self.gamemodes else application_catalog()
         self.filter_apps()
 
     def filter_apps(self):
@@ -516,7 +601,8 @@ class AppsPage(QWidget):
             self.grid.addWidget(self.empty_label, 0, 0, 2, self.columns)
             self.empty_label.show()
         total = len(self.applications)
-        self.count_label.setText(f"{len(self.filtered)} von {total} Apps" if self.search.text().strip() else f"{total} Apps")
+        unit = "Gamemode" if self.gamemodes and total == 1 else self.category
+        self.count_label.setText(f"{len(self.filtered)} von {total} {unit}" if self.search.text().strip() else f"{total} {unit}")
         self.page_label.setText(f"Seite {self.page + 1} von {self.page_count}" if self.filtered else "Keine Treffer")
         self.previous_button.setEnabled(self.page > 0)
         self.next_button.setEnabled(self.page + 1 < self.page_count)
@@ -545,7 +631,7 @@ class SettingsDialog(QDialog):
         layout.setSpacing(0)
         self.sidebar = QFrame()
         self.sidebar.setObjectName("settingsSidebar")
-        self.sidebar.setFixedWidth(220)
+        self.sidebar.setMinimumWidth(200)
         navigation = QVBoxLayout(self.sidebar)
         navigation.setContentsMargins(16, 24, 16, 16)
         navigation.setSpacing(6)
@@ -557,9 +643,13 @@ class SettingsDialog(QDialog):
             ("bluetooth", "Bluetooth", "bluetooth"),
             ("sound", "Lautstärke", "sound"),
             ("brightness", "Bildschirm", "brightness"),
+            ("power", "Energie", "energy"),
+            ("settings", "Systemübersicht", "system"),
+            ("settings", "Meldungen", "notifications"),
             ("update", "Updates", "updates"),
             ("settings", "Fernwartung", "remote"),
             ("restart", "Wiederherstellen", "recovery"),
+            ("settings", "Systemprotokolle", "logs"),
         ):
             button = QPushButton(title)
             button.setObjectName("settingsNav")
@@ -579,7 +669,12 @@ class SettingsDialog(QDialog):
         self.back_button.setAutoDefault(False)
         self.back_button.clicked.connect(self.reject)
         navigation.addWidget(self.back_button)
-        layout.addWidget(self.sidebar)
+        sidebar_scroll = QScrollArea()
+        sidebar_scroll.setWidgetResizable(True)
+        sidebar_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        sidebar_scroll.setFixedWidth(220)
+        sidebar_scroll.setWidget(self.sidebar)
+        layout.addWidget(sidebar_scroll)
         self.content = QScrollArea()
         self.content.setObjectName("settingsContent")
         self.content.setWidgetResizable(True)
@@ -637,7 +732,9 @@ class SettingsDialog(QDialog):
             self.page = MaintenancePage(self, self.home.preview, section)
         else:
             self.page = {"wifi": WifiSheet, "bluetooth": BluetoothSheet,
-                         "sound": AudioSheet, "brightness": BrightnessSheet}[section](
+                         "sound": AudioSheet, "brightness": DisplaySheet, "logs": LogsSheet,
+                         "energy": EnergySheet, "system": SystemSheet,
+                         "notifications": NotificationsSheet}[section](
                 self, self.home.device_client)
         self.current_section = section
         # Reuse the device controls inside the settings window instead of opening a modal.
@@ -684,6 +781,7 @@ class Home(QWidget):
         self.dashboard = QWidget()
         self.pages.addWidget(self.dashboard)
         self.apps_page = None
+        self.gamemodes_page = None
         layout = QVBoxLayout(self.dashboard)
         layout.setContentsMargins(48, 24, 48, 22)
         layout.setSpacing(10)
@@ -700,6 +798,17 @@ class Home(QWidget):
         header.addWidget(brand)
         header.addSpacing(20)
         self.device_client = DeviceClient(self, preview)
+        self.notifications = NotificationCenter(self, preview)
+        self.notification_button = QPushButton("Meldungen")
+        self.notification_button.setAccessibleName("Benachrichtigungszentrale öffnen")
+        self.notification_button.clicked.connect(self.show_notifications)
+        self.notifications.changed.connect(self.update_notification_count)
+        self.update_notification_count()
+        self.system_timer = QTimer(self)
+        self.system_timer.setInterval(60000)
+        self.system_timer.timeout.connect(self.check_system_notifications)
+        self.system_timer.start()
+        QTimer.singleShot(1500, self.check_system_notifications)
         self.status_values = []
         status_row = QHBoxLayout()
         status_row.setSpacing(6)
@@ -726,6 +835,7 @@ class Home(QWidget):
             status_row.addWidget(frame, 1)
             self.status_values.append(value)
         header.addLayout(status_row, 1)
+        header.addWidget(self.notification_button)
         shell.addWidget(self.status_header)
         shell.addWidget(self.page_area, 1)
         self.network = self.status_values[0]
@@ -748,6 +858,7 @@ class Home(QWidget):
         grid.setContentsMargins(48, 36, 48, 36)
         specs = [
             ("apps", "Apps", "Alle Anwendungen öffnen", "apps", False),
+            ("gamemodes", "Gamemodes", "Spielmodus auswählen", "gamemodes", False),
             ("settings", "Einstellungen", "WLAN, Bluetooth, Ton, Bildschirm & Updates", "settings", False),
         ]
         self.tiles = {}
@@ -755,14 +866,19 @@ class Home(QWidget):
             tile = Tile(symbol, title, subtitle, lambda checked=False, a=action: self.launch(a), accent)
             tile.setMinimumWidth(150)
             self.tiles[action] = tile
-            grid.addWidget(tile, 0, i)
+            if action == "gamemodes":
+                grid.addWidget(tile, 1, 0, 1, 2)
+            else:
+                grid.addWidget(tile, 0, 0 if action == "apps" else 1)
         self.music_dialog = None
         self.artwork_loader = ArtworkLoader(self)
-        self.music_tile = MusicTile(lambda action: self.quick_action("media", action), self.show_music)
+        self.music_tile = MusicTile(lambda action: self.quick_action("media", action), self.show_music, self)
         self.artwork_loader.changed.connect(self.music_tile.artwork.set_image)
-        grid.addWidget(self.music_tile, 0, 2)
+        grid.addWidget(self.music_tile, 0, 2, 2, 1)
         for column in range(3):
             grid.setColumnStretch(column, 1)
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 1)
         layout.addLayout(grid, 1)
         self.feedback = QLabel()
         self.feedback.hide()
@@ -821,6 +937,7 @@ class Home(QWidget):
             if self.music_dialog:
                 self.music_dialog.update_state(data, error)
         else:
+            self.music_tile.update_audio(data, error)
             output = data.get("control") or next((o for o in data.get("outputs", []) if o.get("default")), None)
             muted = bool(output and output.get("mute"))
             self.mute_button.setText("Ton einschalten" if muted else "Stummschalten")
@@ -846,7 +963,7 @@ class Home(QWidget):
                 self.music_dialog.set_busy()
         else:
             self.mute_button.setEnabled(False)
-        operation = f"media_{action}" if group == "media" else "audio_toggle"
+        operation = f"media_{action}" if group == "media" else f"audio_{action}" if action in ("volume", "output") else "audio_toggle"
         args = {"player": self.media_state.get("player")} if group == "media" else {}
         args.update(options)
         def finished(data, error):
@@ -869,6 +986,7 @@ class Home(QWidget):
         super().resizeEvent(event)
 
     def update_status(self, status):
+        self.notifications.devices(status)
         values = status_labels(status)
         for widget, text, prefix in zip(self.status_values, values, ("", "Bluetooth", "Netzteil", "Akku")):
             widget.setText(text.removeprefix(prefix).lstrip(": ") if prefix else text)
@@ -880,17 +998,32 @@ class Home(QWidget):
         names = [d["name"] for d in status.get("bluetooth", {}).get("devices", []) if d.get("connected")]
         self.status_values[1].setToolTip("\n".join(names))
 
+    def update_notification_count(self):
+        count = self.notifications.unread
+        self.notification_button.setText(f"Meldungen ({count})" if count else "Meldungen")
+
+    def check_system_notifications(self):
+        if not self.preview:
+            data = system_snapshot()
+            self.notifications.disk(data["disk_free"], data["disk_total"])
+
+    def show_notifications(self):
+        dialog = SettingsDialog(self)
+        dialog.select_section("notifications")
+        dialog.exec()
+        dialog.deleteLater()
+
     def command_for(self, action):
         if action == "spotify":
             if Path("/var/lib/flatpak/app/com.spotify.Client/current/active").exists():
                 return [sys.executable, str(HERE / "spotify_launcher.py")]
-            return ["firefox", "--new-window", "https://open.spotify.com"]
+            return browser_command("https://open.spotify.com")
         return {
             "rocket": [sys.executable, str(HERE / "rocket.py")],
-            "web": ["firefox", "--new-window", "https://start.duckduckgo.com"],
+            "web": browser_command("https://start.duckduckgo.com"),
             "files": ["dolphin", str(Path.home())],
-            "club": ["firefox", "--new-window", CLUB_WEBSITE],
-            "youtube": ["firefox", "--new-window", "https://www.youtube.com/"],
+            "club": browser_command(CLUB_WEBSITE),
+            "youtube": browser_command("https://www.youtube.com/"),
             "install": [sys.executable, str(HERE.parent / "installer/ui.py")],
         }[action]
 
@@ -899,6 +1032,9 @@ class Home(QWidget):
         if action == "apps":
             self.show_apps()
             return
+        if action == "gamemodes":
+            self.show_gamemodes()
+            return
         if action == "settings":
             self.show_settings()
             return
@@ -906,7 +1042,7 @@ class Home(QWidget):
             self.open_device(action)
             return
         if self.preview:
-            title = next((app.title for app in SHORTCUTS if app.action == action), "Installation")
+            title = next((app.title for app in SHORTCUTS + GAMEMODES if app.action == action), "Installation")
             self.set_feedback(f"Vorschau: „{title}“ gewählt. Es wird keine App gestartet.")
             return False
         command = self.command_for(action)
@@ -970,11 +1106,19 @@ class Home(QWidget):
         self.apps_page.search.setFocus()
 
     def show_dashboard(self):
+        previous = self.pages.currentWidget()
         self.pages.setCurrentWidget(self.dashboard)
-        self.tiles["apps"].setFocus()
+        self.tiles["gamemodes" if previous is self.gamemodes_page else "apps"].setFocus()
+
+    def show_gamemodes(self):
+        if self.gamemodes_page is None:
+            self.gamemodes_page = AppsPage(self, gamemodes=True)
+            self.pages.addWidget(self.gamemodes_page)
+        self.pages.setCurrentWidget(self.gamemodes_page)
+        self.gamemodes_page.search.setFocus()
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Escape and self.pages.currentWidget() is self.apps_page:
+        if event.key() == Qt.Key.Key_Escape and self.pages.currentWidget() in (self.apps_page, self.gamemodes_page):
             self.show_dashboard()
             event.accept()
         else:
@@ -1051,7 +1195,7 @@ class Home(QWidget):
 
 
 STYLE = """
-QWidget { font-family: "Noto Sans", "DejaVu Sans"; color: #eeece1; font-size: 14px; }
+QWidget { font-family: "Noto Sans", "DejaVu Sans", "Segoe UI"; color: #eeece1; font-size: 14px; }
 QLabel { background: transparent; }
 QPushButton { background: #35372c; border: none; border-radius: 12px;
               padding: 11px 18px; font-weight: 600; min-height: 24px; outline: none; }
@@ -1083,6 +1227,10 @@ QPushButton#settingsNav:hover, QPushButton#settingsNav:focus { background: #353b
 QPushButton#settingsNav:checked { background: #3c4430; color: #f3f1e6; }
 QPushButton#settingsNav:disabled { color: #929382; }
 QFrame#statusChip { background: #303329; border: none; border-radius: 12px; }
+QComboBox { background: #363b2e; color: #eeece1; border: none; border-radius: 6px; padding: 5px; min-height: 24px; }
+QComboBox QAbstractItemView { background: #292e23; color: #eeece1; selection-background-color: #50563c; }
+QCheckBox { spacing: 8px; }
+QCheckBox::indicator { width: 22px; height: 22px; }
 QListWidget { background: #1e211a; border: none; border-radius: 12px; padding: 6px; outline: none; }
 QListWidget::item { padding: 8px 14px; border-radius: 9px; color: #e8e6d9; }
 QListWidget::item:selected { background: #50563c; color: #f3f1e6; border: none; }

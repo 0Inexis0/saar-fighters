@@ -27,6 +27,7 @@ checks["public_updates_without_login"] = "https://github.com/0Inexis0/saar-fight
 checks["modern_icons_present"] = all(P("/opt/saar-fighters/app/assets/fluent", name + ".svg").is_file() for name in ("folder", "wifi", "sound", "bluetooth"))
 checks["git_installed"] = command("git", "--version").returncode == 0
 checks["spotify_installed"] = command("flatpak", "info", "--system", "com.spotify.Client").returncode == 0
+checks["brave_installed"] = command("flatpak", "info", "--system", "com.brave.Browser").returncode == 0
 runtime = P("/var/lib/flatpak/runtime/org.freedesktop.Platform/x86_64")
 checks["flatpak_runtime_executable"] = any(os.access(p, os.X_OK) for p in runtime.glob("*/active/files/bin/ldconfig"))
 checks["saar_not_administrator"] = command("runuser", "-u", "saar", "--", "sudo", "-n", "true").returncode != 0

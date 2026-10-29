@@ -24,6 +24,7 @@ def output_info(sink, default):
 class AudioRouter:
     def __init__(self, pactl):
         self.pactl = pactl
+        self.bluetooth_seen = None
 
     async def state(self):
         sinks = json.loads(await self.pactl("-f", "json", "list", "sinks"))
@@ -39,7 +40,33 @@ class AudioRouter:
                    for s in sinks if not combined(s)]
         return {"outputs": outputs, "control": output_info(active, default) if active else None}
 
-    async def select(self, ids):
+    async def set_output_volume(self, name, value):
+        if type(value) is not int or not 0 <= value <= 100:
+            raise ValueError("Lautstärke muss zwischen 0 und 100 liegen.")
+        sinks, _ = await self.state()
+        if not any(s["name"] == name and not combined(s) for s in sinks):
+            raise ValueError("Dieser Audioausgang ist nicht mehr verfügbar.")
+        await self.pactl("set-sink-volume", name, f"{value}%")
+        return {"message": "Lautsprecherlautstärke übernommen."}
+
+    async def auto_bluetooth(self, enabled=True):
+        sinks, _ = await self.state()
+        bluetooth = {s["name"] for s in sinks if s["name"].startswith("bluez_output.")
+                     or s.get("properties", {}).get("device.bus") == "bluetooth"}
+        previous = self.bluetooth_seen
+        self.bluetooth_seen = bluetooth
+        # Initial discovery is a baseline, not a connection event.
+        if enabled and previous is not None:
+            added = bluetooth - previous
+            if added:
+                target = next(s for s in reversed(sinks) if s["name"] in added)
+                try:
+                    await self.select([str(target["index"])], preserve_control=True)
+                except Exception:
+                    self.bluetooth_seen = previous
+                    raise
+
+    async def select(self, ids, preserve_control=False):
         if (not isinstance(ids, list) or not ids or len(ids) > 64
                 or any(not isinstance(value, str) or not value for value in ids)):
             raise ValueError("Bitte mindestens einen Audioausgang auswählen.")
@@ -81,7 +108,7 @@ class AudioRouter:
                     control = output_info(current, default)
                     await self.pactl("set-sink-volume", target, f'{min(100, control["volume"])}%')
                     await self.pactl("set-sink-mute", target, "1" if control["mute"] else "0")
-            if len(names) == 1 and current and combined(current):
+            if len(names) == 1 and current and (combined(current) or preserve_control):
                 previous_control = output_info(selected[0], default)
                 control = output_info(current, default)
                 await self.pactl("set-sink-mute", target, "1" if control["mute"] else "0")

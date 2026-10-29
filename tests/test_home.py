@@ -33,9 +33,34 @@ class HomeTests(unittest.TestCase):
         self.home.deleteLater()
         self.app.processEvents()
 
+    def test_widget_seek_is_cancelled_when_track_changes(self):
+        tile = self.home.music_tile
+        state = {"player": "org.mpris.MediaPlayer2.spotify", "track_id": "/first",
+                 "duration": 200, "position": 10, "can_seek": True}
+        tile.update_state(state)
+        tile.capture_seek()
+        tile.position.setValue(500)
+        tile.update_state({**state, "track_id": "/second"})
+        with patch.object(self.home, "quick_action") as action:
+            tile.seek(500)
+            action.assert_not_called()
+        self.assertFalse(tile.position.delay.isActive())
+
+    def test_widget_output_and_volume_actions(self):
+        tile = self.home.music_tile
+        tile.update_audio({"outputs": [{"id": "7", "description": "USB", "selected": True}],
+                           "control": {"volume": 42}})
+        self.assertEqual(tile.volume.value(), 42)
+        with patch.object(self.home, "quick_action") as action:
+            tile.choose_output(0)
+            action.assert_called_with("audio", "output", id="7")
+            tile.volume.committed.emit(28)
+            action.assert_called_with("audio", "volume", value=28)
+
     def test_all_tiles_are_clickable_without_launching_in_preview(self):
         with patch.object(QProcess, "start") as start, patch.object(self.home, "show_settings") as settings, \
-                patch.object(self.home, "show_apps") as apps:
+                patch.object(self.home, "show_apps") as apps, \
+                patch.object(self.home, "show_gamemodes") as gamemodes:
             for action, tile in self.home.tiles.items():
                 QTest.mouseClick(tile, Qt.MouseButton.LeftButton)
                 self.assertEqual(self.home.last_action, action)
@@ -43,6 +68,8 @@ class HomeTests(unittest.TestCase):
                     settings.assert_called_once_with()
                 elif action == "apps":
                     apps.assert_called_once_with()
+                elif action == "gamemodes":
+                    gamemodes.assert_called_once_with()
             start.assert_not_called()
 
     def test_controls_fit_small_laptop(self):
@@ -58,11 +85,15 @@ class HomeTests(unittest.TestCase):
             music = self.home.music_tile.geometry()
             self.assertGreater(music.left(), settings.right())
             self.assertEqual(music.top(), settings.top())
+            games = self.home.tiles["gamemodes"].geometry()
+            self.assertGreater(games.top(), settings.bottom())
+            self.assertEqual(games.left(), self.home.tiles["apps"].geometry().left())
+            self.assertEqual(games.right(), settings.right())
             for button in self.home.music_tile.buttons.values():
                 self.assertTrue(self.home.music_tile.rect().contains(button.geometry()))
 
     def test_settings_navigation_and_return(self):
-        self.assertEqual(set(self.home.tiles), {"apps", "settings"})
+        self.assertEqual(set(self.home.tiles), {"apps", "gamemodes", "settings"})
         dialog = SettingsDialog(self.home)
         dialog.show()
         self.app.processEvents()
@@ -328,14 +359,14 @@ class HomeTests(unittest.TestCase):
 
     def test_rocket_tile_launches_local_helper_without_admin_rights(self):
         self.home.preview = False
-        self.home.show_apps()
-        dialog = self.home.apps_page
+        self.home.show_gamemodes()
+        dialog = self.home.gamemodes_page
         dialog.search.setText("Rocket Launch")
         with patch("main.shutil.which", return_value="python"), patch.object(QProcess, "start") as start:
             QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
             self.assertEqual(start.call_args.args, (sys.executable,
                 [str(Path(__file__).resolve().parents[1] / "app/rocket.py")]))
-            self.home.show_apps()
+            self.home.show_gamemodes()
             QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
             self.assertEqual(start.call_count, 1)
         self.home.preview = True

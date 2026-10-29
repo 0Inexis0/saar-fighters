@@ -21,6 +21,7 @@ async def status():
         for name in names:
             kind = next((label for prefix, label in (("org.mpris.MediaPlayer2.spotify", "Spotify"),
                 ("org.mpris.MediaPlayer2.firefox", "Firefox"), ("org.mpris.MediaPlayer2.vlc", "VLC"))
+                + (("org.mpris.MediaPlayer2.chromium", "Brave/Chromium"), ("org.mpris.MediaPlayer2.brave", "Brave"))
                 if name == prefix or name.startswith(prefix + ".")), None)
             if not kind:
                 continue

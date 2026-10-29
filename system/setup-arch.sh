@@ -22,7 +22,7 @@ fi
 cat <<'INFO'
 Saar-Fighters auf diesem Arch einrichten
 
-- Arch und Pakete werden aktualisiert; KDE Plasma, Firefox und Spotify installiert.
+- Arch und Pakete werden aktualisiert; KDE Plasma, Brave und Spotify installiert.
 - Vereinsbenutzer saar mit automatischer Anmeldung und Administrator wartung.
 - SDDM wird ab dem nächsten Start der Anmeldemanager.
 - Systemsprache Deutsch, Tastatur Deutsch, Zeitzone Europe/Berlin.
@@ -42,10 +42,10 @@ git -c core.hooksPath=/dev/null clone --depth=1 --single-branch --branch main \
     https://github.com/0Inexis0/saar-fighters.git "$stage/source"
 source_dir=$stage/source
 revision=$(git -C "$source_dir" rev-parse HEAD)
-packages=(plasma-desktop plasma-nm plasma-pa bluedevil breeze-gtk sddm xorg-server
+packages=(plasma-desktop kscreen powerdevil systemsettings plasma-nm plasma-pa bluedevil breeze-gtk sddm xorg-server
     mesa pyside6 python-dbus-next qt6-svg qt6-tools qt6-translations upower libpulse
-    networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber firefox
-    firefox-i18n-de dolphin konsole flatpak vlc vlc-plugins-all noto-fonts
+    networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
+    dolphin konsole flatpak vlc vlc-plugins-all noto-fonts
     noto-fonts-emoji ttf-dejavu polkit-kde-agent sudo xdg-utils)
 pacman -S --needed --noconfirm "${packages[@]}"
 backup=/var/lib/saar-setup-backups/$(date +%Y%m%d-%H%M%S)
@@ -83,7 +83,7 @@ touch /var/lib/saar-base-ready
 bash /opt/saar-fighters/system/install.sh --existing-arch
 printf 'KEYMAP=de-latin1\n' > /etc/vconsole.conf
 ln -sfn /usr/share/zoneinfo/Europe/Berlin /etc/localtime
-flatpak install --system --noninteractive flathub com.spotify.Client
+flatpak install --system --noninteractive flathub com.spotify.Client com.brave.Browser
 # Only change next-boot activation. Do not terminate the current desktop/network.
 old_display=$(readlink -f /etc/systemd/system/display-manager.service || true)
 if [[ -n $old_display && ${old_display##*/} != sddm.service ]]; then

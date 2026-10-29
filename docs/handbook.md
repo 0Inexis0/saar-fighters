@@ -293,10 +293,10 @@ ein bootfähiges System ein.
   Zugangsdaten und Tokens gehören niemals ins Repository.
 - VM-Tests ersetzen keine Prüfung des realen WLAN-/Bluetooth-Chips,
   der Boxen, der Akkulaufzeit oder der Leistung des Vereinslaptops.
-- Im Vereinsprofil bleiben Bildschirm und Sitzung bei Inaktivität eingeschaltet,
+- Im voreingestellten Vereinsprofil bleiben Bildschirm und Sitzung bei Inaktivität eingeschaltet,
   auch im Akku- und Niedrigakku-Profil. Automatisches Abdunkeln, Bildschirmabschalten,
-  Sperren und Inaktivitäts-Suspend sind deaktiviert. Die Einstellung wird bei jeder
-  Anmeldung auch auf bestehenden Installationen übernommen. Manuelle Aktionen,
+  Sperren und Inaktivitäts-Suspend sind deaktiviert. Solange kein eigenes Energieprofil
+  gewählt wurde, wird dies bei der Anmeldung übernommen. Manuelle Aktionen,
   Zuklappen und der Schutz bei kritisch leerem Akku bleiben unverändert.
 - Der einfache WLAN-Dialog unterstützt sichtbare Netze mit WPA2/WPA3-Personal
   sowie offene/OWE-Netze. Versteckte Netze, Unternehmensanmeldung (802.1X) und
@@ -327,3 +327,61 @@ ISO-Dateien weiterhin als Release-Anhänge veröffentlichen, nicht in Git einche
 `saar-fighters-updates`. Die GitHub-Weiterleitung auf `saar-fighters` bleibt
 dafür erforderlich. Nach einem erfolgreichen Update nutzt der Helfer die neue
 Adresse direkt. Das alte Repository unter diesem Namen nicht neu anlegen.
+
+
+## Bildschirm, Energie, Systemübersicht und Meldungen
+
+- Unter Bildschirm öffnet „Anzeige einrichten“ die KDE-Anzeigeverwaltung in einem
+  eigenen Fenster. Dort lassen sich Auflösung, Skalierung, Drehung, Anordnung und
+  Spiegelung angeschlossener Monitore einstellen. Die Helligkeit bleibt direkt
+  in unserer Oberfläche erreichbar. Benötigt `kscreen` und `systemsettings`.
+- Energie bietet Vereinsbetrieb, Laptopbetrieb und eigene Einstellungen.
+  Laptopbetrieb dimmt nach zwei Minuten, schaltet den Bildschirm nach fünf Minuten
+  aus und fordert nach 15 Minuten Standby an, am Netzteil und am Akku.
+  Laufende Anwendungen können den Standby über die Energieverwaltung verhindern.
+  Zuklappen, Einschalttasten und kritische Akkuschutzaktionen werden nicht verändert.
+  Die Wahl liegt unter `~/.config/saar-fighters/energy.json`; nach der Wahl
+  überschreibt die Anmeldung auch manuelle KDE-Anpassungen nicht mehr.
+  „Weitere Energieeinstellungen“ öffnet KDE. Der Energiedienst wird nach einer
+  Profilwahl neu geladen; bei Fehlern wird ausdrücklich auf die notwendige
+  erneute Anmeldung hingewiesen. Das Profil ändert keine CPU-Leistungsmodi.
+- Die Systemübersicht zeigt die installierte Oberflächenrevision, Kernel,
+  Architektur, belegten RAM, freien Speicher auf dem Systemlaufwerk und den
+  letzten erfolgreich abgeschlossenen Systemupdatezeitpunkt. Fehlende Werte
+  werden als nicht verfügbar angezeigt. Aktualisierung alle zehn Sekunden.
+- „Meldungen“ ist über die Kopfzeile und die Einstellungen erreichbar. Die lokale
+  Historie enthält bis zu 100 Updateergebnisse, Energieprofil-Ergebnisse,
+  Fehler bei der Statusabfrage, Warnungen bei höchstens 15 Prozent Akku ohne
+  Netzteil sowie weniger als 2 GiB oder fünf Prozent freiem Systemspeicher.
+  Speicher wird einmal pro Minute geprüft. Anhaltende Zustände erzeugen innerhalb
+  einer Sitzung nur eine Meldung. Gelesenstatus und Verlauf bleiben erhalten;
+  als gelesen markieren und Verlauf leeren sind separat möglich.
+  Speicherung: `~/.local/state/saar-fighters/notifications.json`.
+  Dies ist die Meldungszentrale unserer Oberfläche, kein Ersatz für die
+  Benachrichtigungen fremder KDE-Anwendungen. Es erfolgt keine Online-Updateabfrage.
+- Vorschauen verwenden Beispieldaten und ändern weder Geräte noch Profile oder
+  gespeicherte Meldungen. Die erforderlichen KDE-Pakete sind im ISO-Paketplan,
+  der Einrichtung und im Systemupdate berücksichtigt.
+
+## Audio und Systemprotokolle (Bedienung)
+
+- WLAN, Bluetooth, Ton und automatischer Bluetooth-Audiowechsel haben Ein/Aus-Schalter.
+  Fernwartung verwendet weiterhin ihren bestätigten Schalter mit Administratorfreigabe.
+- Unter Lautstärke hat jede erkannte Box einen eigenen Regler von 0 bis 100 Prozent.
+  Die Häkchen wählen die gleichzeitig verwendeten Ausgänge. Die gemeinsame Lautstärke
+  regelt den aktiven Ausgang beziehungsweise die Audiogruppe zusätzlich.
+- Bei einem neu verfügbaren Bluetooth-Audioausgang wird innerhalb weniger Sekunden
+  dorthin gewechselt, inklusive laufender Anwendungen. Lautstärke und Stummschaltung
+  der bisherigen Ausgabe bleiben beim automatischen Wechsel erhalten. Die erste
+  Geräteaufnahme nach dem Start bildet nur den Ausgangszustand. Eine anschließende
+  manuelle Ausgangswahl bleibt bis zur nächsten Bluetooth-Neuverbindung bestehen.
+  Der Schalter wird in `~/.config/saar-fighters/audio.json` gespeichert.
+- Das kleine Musikwidget bietet eine direkte Ausgangsauswahl, die Ausgangslautstärke
+  und einen Positionsregler mit Zeitangaben. Gemeinsame Boxengruppen werden angezeigt;
+  eine einzelne Auswahl wechselt direkt auf diese Box. Gruppen werden in den Einstellungen
+  zusammengestellt. Spulen ist nur bei entsprechender Player-Unterstützung aktiv.
+  Ein Titelwechsel verwirft eine noch nicht übernommene Positionsänderung.
+- Systemprotokolle zeigt bis zu 500 Journal-Einträge des aktuellen Starts, wahlweise
+  Systemwarnungen oder die Benutzersitzung, sowie lokale Ereignisse der Vereinsprogramme.
+  Es werden nur vorhandene Leserechte verwendet. Fehlende Zugriffsrechte werden angezeigt.
+  „Als Text speichern“ exportiert ausschließlich die angezeigten Einträge an den gewählten Ort.

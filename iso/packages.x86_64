@@ -32,6 +32,9 @@ wireless-regdb
 bluez
 bluez-utils
 plasma-desktop
+kscreen
+powerdevil
+systemsettings
 plasma-nm
 plasma-pa
 bluedevil
@@ -49,8 +52,6 @@ libpulse
 pipewire
 pipewire-pulse
 wireplumber
-firefox
-firefox-i18n-de
 dolphin
 konsole
 flatpak

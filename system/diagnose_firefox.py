@@ -43,6 +43,7 @@ def main():
         raise SystemExit("Aufruf ohne Argumente über sudo erforderlich.")
     report = {
         "packages": command("pacman", "-Q", "firefox", "mesa", "linux", "intel-ucode", "amd-ucode"),
+        "brave": command("flatpak", "info", "--system", "com.brave.Browser"),
         "memory": command("free", "-m"),
         "swap": command("swapon", "--show", "--bytes"),
         "graphics": command("lspci", "-nnk", "-d", "::03xx"),

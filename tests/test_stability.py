@@ -23,15 +23,16 @@ maintenance = load("system/maintenance.py")
 
 
 class StabilityTests(unittest.TestCase):
-    def test_legacy_install_hook_applies_stability_after_installing_tools(self):
+    def test_legacy_install_hook_configures_browser_after_installing_tools(self):
         order = []
         with patch.object(maintenance.sys, "argv", ["maintenance.py", "install"]), \
+                patch.dict(maintenance.os.environ, {"SAAR_UPDATE_INHIBITED": "1"}), \
                 patch.object(maintenance.os, "geteuid", return_value=0, create=True), \
                 patch.object(maintenance, "install_tools", side_effect=lambda: order.append("tools")), \
                 patch.object(maintenance.subprocess, "run", side_effect=lambda *a, **k: order.append("policy")) as run:
             maintenance.main()
         self.assertEqual(order, ["tools", "policy"])
-        run.assert_called_once_with(["/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_stability.py"], check=True)
+        run.assert_called_once_with(["/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_browser.py"], check=True)
 
     def test_firefox_policy_preserves_existing_settings_and_original_backup(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -3,11 +3,13 @@ import json
 from pathlib import Path
 import sys
 
-from PySide6.QtCore import QObject, QProcess, Qt, QTimer, Signal, QSize
+from PySide6.QtCore import QObject, QProcess, Qt, QTimer, Signal, QSize, QRectF
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-                              QListWidgetItem, QPushButton, QSlider, QVBoxLayout)
+                              QListWidgetItem, QPushButton, QSlider, QVBoxLayout, QWidget, QComboBox, QPlainTextEdit, QFileDialog, QCheckBox)
 
+from PySide6.QtGui import QColor, QPainter, QPen
 from hardware import wifi_password_valid
+from music_player import PlayerSlider
 
 EXAMPLE_STATUS = {
     "network": {"state": 70, "name": "Vereinsheim", "type": "802-11-wireless"},
@@ -26,6 +28,31 @@ def label(text="", style=""):
     return widget
 
 
+class RemoteToggle(QCheckBox):
+    def __init__(self):
+        super().__init__()
+        self.setFixedSize(52, 32)
+        self.setAccessibleName("Fernwartung im lokalen Netz")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def hitButton(self, position):
+        return self.rect().contains(position)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setOpacity(1.0 if self.isEnabled() else 0.4)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#b7bd87" if self.isChecked() else "#55594a"))
+        painter.drawRoundedRect(QRectF(2, 4, 48, 24), 12, 12)
+        painter.setBrush(QColor("#25281f" if self.isChecked() else "#eeece1"))
+        painter.drawEllipse(QRectF(28 if self.isChecked() else 6, 8, 16, 16))
+        if self.hasFocus():
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(QColor("#eeece1"), 1))
+            painter.drawRoundedRect(QRectF(0.5, 2, 51, 28), 14, 14)
+
+
 class DeviceClient(QObject):
     status_changed = Signal(dict)
     pairing = Signal(dict)
@@ -37,6 +64,8 @@ class DeviceClient(QObject):
         self.preview_audio_ids = ["1"]
         self.preview_audio_volume = 55
         self.preview_audio_muted = False
+        self.preview_output_volumes = {}
+        self.preview_auto_audio = True
         self.sequence = 0
         self.pending = {}
         self.buffer = b""
@@ -120,7 +149,11 @@ class DeviceClient(QObject):
             return
         args = args or {}
         if operation.startswith("audio"):
-            if operation == "audio_outputs":
+            if operation == "audio_autoswitch":
+                self.preview_auto_audio = args["enabled"]
+            elif operation == "audio_output_volume":
+                self.preview_output_volumes[args["name"]] = args["value"]
+            elif operation == "audio_outputs":
                 self.preview_audio_ids = args["ids"]
             elif operation == "audio_output":
                 self.preview_audio_ids = [args["id"]]
@@ -133,12 +166,12 @@ class DeviceClient(QObject):
             outputs = [{"id": key, "name": "example" + key, "description": name,
                         "selected": key in self.preview_audio_ids,
                         "default": self.preview_audio_ids == [key],
-                        "mute": self.preview_audio_muted, "volume": self.preview_audio_volume}
+                        "mute": self.preview_audio_muted, "volume": self.preview_output_volumes.get("example" + key, self.preview_audio_volume)}
                        for key, name in (("1", "Vereinsboxen"), ("2", "HDMI / Bildschirm"),
                                          ("3", "USB-Lautsprecher"))]
             control = {"volume": self.preview_audio_volume, "mute": self.preview_audio_muted}
             if callback:
-                callback({"outputs": outputs, "control": control,
+                callback({"outputs": outputs, "control": control, "auto_bluetooth": self.preview_auto_audio,
                           "message": "Vorschau: Auswahl übernommen."}, None)
             return
         if operation == "brightness_set":
@@ -214,7 +247,7 @@ class Sheet(QDialog):
             self.working(False)
             self.message.setText(error or data.get("message", "Einstellung übernommen."))
             self.client.refresh_status()
-            if finished and not error:
+            if finished:
                 finished()
         self.request(operation, args, done)
 
@@ -233,7 +266,9 @@ class WifiSheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "WLAN", "Netz auswählen, bei Bedarf Passwort eingeben und verbinden.")
         row = QHBoxLayout()
-        self.toggle = QPushButton("WLAN einschalten")
+        self.toggle = RemoteToggle()
+        self.toggle.setAccessibleName("WLAN")
+        row.addWidget(label("WLAN"))
         self.scan = QPushButton("Netze suchen")
         row.addWidget(self.toggle)
         row.addWidget(self.scan)
@@ -267,7 +302,7 @@ class WifiSheet(Sheet):
         self.working(False)
         self.list.clear()
         self.info = data or {}
-        self.toggle.setText("WLAN ausschalten" if self.info.get("enabled") else "WLAN einschalten")
+        self.toggle.setChecked(bool(self.info.get("enabled")))
         self.toggle.setEnabled(bool(self.info.get("available")) and not error)
         self.scan.setEnabled(bool(self.info.get("available") and self.info.get("enabled")))
         if error:
@@ -333,7 +368,9 @@ class BluetoothSheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "Bluetooth", "Boxen oder andere Geräte auswählen. Neue Geräte vorher in den Kopplungsmodus versetzen.")
         row = QHBoxLayout()
-        self.toggle = QPushButton("Bluetooth einschalten")
+        self.toggle = RemoteToggle()
+        self.toggle.setAccessibleName("Bluetooth")
+        row.addWidget(label("Bluetooth"))
         self.scan = QPushButton("Geräte suchen")
         row.addWidget(self.toggle)
         row.addWidget(self.scan)
@@ -379,7 +416,7 @@ class BluetoothSheet(Sheet):
         self.info = data or {}
         available, powered = self.info.get("available"), self.info.get("powered")
         self.toggle.setEnabled(bool(available))
-        self.toggle.setText("Bluetooth ausschalten" if powered else "Bluetooth einschalten")
+        self.toggle.setChecked(bool(powered))
         self.scan.setEnabled(bool(available and powered))
         self.scan.setText("Suche beenden" if self.searching else "Geräte suchen")
         if not quiet:
@@ -597,14 +634,32 @@ class BrightnessSheet(Sheet):
             super().closeEvent(event)
 
 
+class AudioOutputList(QListWidget):
+    def keyPressEvent(self, event):
+        item = self.currentItem()
+        if item and event.key() == Qt.Key.Key_Space:
+            item.setCheckState(Qt.CheckState.Unchecked if item.checkState() == Qt.CheckState.Checked else Qt.CheckState.Checked)
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+
 class AudioSheet(Sheet):
     def __init__(self, parent, client):
         super().__init__(parent, client, "Lautstärke & Boxen",
                          "Eine oder mehrere Boxen für die gleichzeitige Wiedergabe auswählen.")
-        self.list = QListWidget()
+        self.list = AudioOutputList()
         self.list.setAccessibleName("Audioausgänge für gleichzeitige Wiedergabe")
+        self.list.setMinimumHeight(210)
+        auto_row = QHBoxLayout()
+        auto_row.addWidget(label("Bei neuer Bluetooth-Audioverbindung automatisch wechseln"), 1)
+        self.auto_audio = RemoteToggle()
+        self.auto_audio.setAccessibleName("Bluetooth-Audio automatisch umschalten")
+        auto_row.addWidget(self.auto_audio)
+        self.body.addLayout(auto_row)
+        self.auto_audio.clicked.connect(lambda checked: self.change("audio_autoswitch", {"enabled": checked}, preserve=True))
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self.list.setStyleSheet("QListWidget::indicator { width: 24px; height: 24px; }")
+        self.list.setStyleSheet("QListWidget::indicator { width: 0px; height: 0px; }")
         self.body.addWidget(self.list, 1)
         self.level = label("Gemeinsame Lautstärke", "font-size: 22px; font-weight: 700;")
         self.body.addWidget(self.level)
@@ -613,17 +668,20 @@ class AudioSheet(Sheet):
         self.slider.setAccessibleName("Gemeinsame Lautstärke in Prozent")
         self.body.addWidget(self.slider)
         row = QHBoxLayout()
-        self.mute = QPushButton("Stummschalten")
-        self.reload = QPushButton("Erneut laden")
-        self.choose = QPushButton("Auswahl übernehmen")
+        self.mute = RemoteToggle()
+        self.mute.setAccessibleName("Ton eingeschaltet")
+        row.addWidget(label("Ton"))
+        self.reload = QPushButton("Laden")
+        self.choose = QPushButton("Übernehmen")
         self.choose.setObjectName("confirm")
         row.addWidget(self.mute)
         row.addWidget(self.reload)
         row.addWidget(self.choose)
         self.body.addLayout(row)
-        self.controls = [self.slider, self.mute, self.choose, self.list, self.reload]
+        self.controls = [self.slider, self.mute, self.choose, self.list, self.reload, self.auto_audio]
         self.muted = False
         self.has_control = False
+        self.output_sliders = []
         self.volume_timer = QTimer(self)
         self.volume_timer.setSingleShot(True)
         self.volume_timer.setInterval(350)
@@ -648,24 +706,38 @@ class AudioSheet(Sheet):
                 for i in range(self.list.count()) if self.list.item(i).checkState() == Qt.CheckState.Checked]
 
     def update_controls(self, *_):
-        pending = self.busy or self.volume_timer.isActive() or self.slider.isSliderDown()
-        self.list.setEnabled(not pending and self.list.count() > 0)
+        for index in range(self.list.count()):
+            item = self.list.item(index)
+            widget = self.list.itemWidget(item)
+            if widget:
+                check = widget.findChild(QCheckBox)
+                check.blockSignals(True)
+                check.setChecked(item.checkState() == Qt.CheckState.Checked)
+                check.blockSignals(False)
+        output_pending = any(s.delay.isActive() or s.isSliderDown() for s in self.output_sliders)
+        pending = self.busy or self.volume_timer.isActive() or self.slider.isSliderDown() or output_pending
+        self.list.setEnabled(not self.busy and not self.volume_timer.isActive() and self.list.count() > 0)
         self.choose.setEnabled(not pending and bool(self.checked_ids()))
         self.reload.setEnabled(not pending)
         self.mute.setEnabled(not pending and self.has_control)
-        self.slider.setEnabled(not self.busy and self.has_control)
+        self.slider.setEnabled(not self.busy and not output_pending and self.has_control)
+        self.auto_audio.setEnabled(not pending)
         self.back.setEnabled(not pending)
 
     def loaded(self, data, error, message="", preserve=False):
         checked = self.checked_ids() if preserve else None
         self.working(False)
         self.list.blockSignals(True)
+        for slider in self.output_sliders:
+            slider.delay.stop()
+        self.output_sliders = []
         self.list.clear()
         outputs = (data or {}).get("outputs", []) if not error else []
         control = (data or {}).get("control") if not error else None
         if control is None and not error:
             control = next((o for o in outputs if o.get("default")), None)
         self.has_control = control is not None
+        self.auto_audio.setChecked((data or {}).get("auto_bluetooth", True))
         for output in outputs:
             selected = output.get("selected", output.get("default", False))
             item = QListWidgetItem(output["description"] + ("\nWird verwendet" if selected else "\nVerfügbar"))
@@ -673,19 +745,44 @@ class AudioSheet(Sheet):
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked if (output["id"] in checked if checked is not None else selected)
                                else Qt.CheckState.Unchecked)
-            item.setSizeHint(QSize(0, 64))
+            item.setSizeHint(QSize(0, 96))
             self.list.addItem(item)
+            widget = QWidget()
+            box = QVBoxLayout(widget)
+            box.setContentsMargins(4, 4, 8, 4)
+            check = QCheckBox(f'{output["description"]} · {output["volume"]} %')
+            check.setChecked(item.checkState() == Qt.CheckState.Checked)
+            check.setToolTip("Für gemeinsame Wiedergabe auswählen")
+            check.toggled.connect(lambda checked, entry=item: entry.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked))
+            box.addWidget(check)
+            widget.setStyleSheet("background: #1e211a;")
+            item.setData(Qt.ItemDataRole.ForegroundRole, self.palette().base())
+            volume = PlayerSlider(output["description"] + " Lautstärke")
+            volume.reflect(min(100, output["volume"]))
+            volume.setToolTip(f'{output["volume"]} %')
+            volume.valueChanged.connect(lambda value, text=check, name=output["description"]: text.setText(f"{name} · {value} %"))
+            volume.committed.connect(lambda value, name=output["name"]: self.change(
+                "audio_output_volume", {"name": name, "value": value}, preserve=True))
+            self.output_sliders.append(volume)
+            volume.valueChanged.connect(lambda _, active=volume: self.output_pending(active))
+            box.addWidget(volume)
+            self.list.setItemWidget(item, widget)
         self.list.blockSignals(False)
         self.slider.blockSignals(True)
         self.slider.setValue(min(100, control["volume"]) if control else 0)
         self.slider.blockSignals(False)
         self.level.setText(f'Gemeinsame Lautstärke: {self.slider.value()} %' if control else "Lautstärke nicht verfügbar")
         self.muted = bool(control and control["mute"])
-        self.mute.setText("Ton einschalten" if self.muted else "Stummschalten")
+        self.mute.setChecked(not self.muted)
         count = sum(o.get("selected", o.get("default", False)) for o in outputs)
         self.message.setText(error or message or (
             f"{count} Ausgänge aktiv. Gewünschte Boxen ankreuzen und die Auswahl übernehmen." if outputs
             else "Kein Audioausgang erkannt. Bitte die Boxen anschließen."))
+        self.update_controls()
+
+    def output_pending(self, active):
+        for slider in self.output_sliders:
+            slider.setEnabled(slider is active)
         self.update_controls()
 
     def change(self, operation, args, preserve=False):
@@ -715,11 +812,92 @@ class AudioSheet(Sheet):
             self.change("audio_outputs", {"ids": ids})
 
     def reject(self):
-        if not self.volume_timer.isActive() and not self.slider.isSliderDown():
+        if not any(s.delay.isActive() or s.isSliderDown() for s in self.output_sliders) and not self.volume_timer.isActive() and not self.slider.isSliderDown():
             super().reject()
 
     def closeEvent(self, event):
-        if self.volume_timer.isActive() or self.slider.isSliderDown():
+        if any(s.delay.isActive() or s.isSliderDown() for s in self.output_sliders) or self.volume_timer.isActive() or self.slider.isSliderDown():
             event.ignore()
         else:
             super().closeEvent(event)
+
+
+class LogsSheet(Sheet):
+    def __init__(self, parent, client):
+        super().__init__(parent, client, "Systemprotokolle",
+                         "Lokale Protokolle dieses Starts. Sichtbar sind nur Einträge, für die dein Konto Leserechte hat.")
+        self.source = QComboBox()
+        self.source.addItems(["System: Warnungen und Fehler", "Benutzersitzung", "Vereinsprogramme"])
+        self.body.addWidget(self.source)
+        self.output = QPlainTextEdit()
+        self.output.setReadOnly(True)
+        self.output.setMaximumBlockCount(600)
+        self.output.setAccessibleName("Protokolleinträge")
+        self.body.addWidget(self.output, 1)
+        row = QHBoxLayout()
+        self.reload = QPushButton("Aktualisieren")
+        self.export = QPushButton("Als Text speichern")
+        row.addWidget(self.reload)
+        row.addWidget(self.export)
+        self.body.addLayout(row)
+        self.controls = [self.source, self.reload, self.export]
+        self.process = QProcess(self)
+        self.process.finished.connect(self.completed)
+        self.process.errorOccurred.connect(self.failed)
+        self.timeout = QTimer(self)
+        self.timeout.setSingleShot(True)
+        self.timeout.timeout.connect(self.process.kill)
+        self.reload.clicked.connect(self.load)
+        self.source.currentIndexChanged.connect(self.load)
+        self.export.clicked.connect(self.save)
+        self.finished.connect(lambda: self.timeout.stop())
+        self.load()
+
+    def load(self):
+        if self.busy:
+            return
+        self.output.clear()
+        if self.client.preview:
+            self.message.setText("Beispielprotokolle, keine echten Systemdaten.")
+            self.output.setPlainText("Vorschau: Beispieldaten\n10:30:00 Vereinsoberfläche gestartet.\n10:31:02 Audioausgang verbunden.")
+            return
+        if self.source.currentIndex() == 2:
+            try:
+                path = Path.home() / ".local/state/saar-fighters/app-health.jsonl"
+                with path.open("rb") as stream:
+                    stream.seek(0, 2)
+                    stream.seek(max(0, stream.tell() - 65536))
+                    self.output.setPlainText(stream.read().decode("utf-8", errors="replace"))
+                self.message.setText("Lokale Start-, Fehler- und Beendigungsereignisse der Vereinsprogramme.")
+            except OSError:
+                self.message.setText("Noch keine lesbaren Programmprotokolle vorhanden.")
+            return
+        self.working(True, "Protokolle werden geladen …")
+        args = ["--no-pager", "--boot", "--lines=500", "--output=short-iso"]
+        args += ["--priority=warning"] if self.source.currentIndex() == 0 else ["--user"]
+        self.process.start("journalctl", args)
+        self.timeout.start(10000)
+
+    def failed(self, error):
+        if error == QProcess.ProcessError.FailedToStart:
+            self.timeout.stop()
+            self.working(False, "Die Systemprotokolle sind auf diesem System nicht verfügbar.")
+
+    def completed(self, code, status):
+        self.timeout.stop()
+        self.working(False)
+        self.output.setPlainText(bytes(self.process.readAllStandardOutput()).decode(errors="replace"))
+        detail = bytes(self.process.readAllStandardError()).decode(errors="replace").strip()
+        self.message.setText("Protokolle konnten nicht vollständig geladen werden." if code else
+                             "Bis zu 500 Einträge. Keine automatische Weitergabe.")
+        if detail:
+            self.message.setText(self.message.text() + "\n" + detail[:1500])
+
+    def save(self):
+        filename, _ = QFileDialog.getSaveFileName(self, "Protokolle speichern", "saar-protokolle.txt", "Textdateien (*.txt)")
+        if filename:
+            try:
+                Path(filename).write_text(self.output.toPlainText(), encoding="utf-8")
+                self.message.setText("Protokolle gespeichert.")
+            except OSError:
+                self.message.setText("Die Datei konnte nicht gespeichert werden.")

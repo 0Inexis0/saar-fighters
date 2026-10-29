@@ -1,0 +1,4 @@
+# Linux entry points must remain executable shell text after a Windows checkout.
+*.sh text eol=lf
+system/saar-* text eol=lf
+installer/saar-install text eol=lf
