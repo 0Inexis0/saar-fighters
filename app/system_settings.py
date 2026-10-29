@@ -1,10 +1,8 @@
 """System pages integrated into the club settings, using native Plasma controls."""
-import json
-from pathlib import Path
+import re
 import shutil
-import sys
-from PySide6.QtCore import QProcess, QTimer
-from PySide6.QtWidgets import QPushButton, QPlainTextEdit, QHBoxLayout
+from PySide6.QtCore import QProcess, QProcessEnvironment, QTimer
+from PySide6.QtWidgets import QPushButton, QPlainTextEdit
 from devices import Sheet, BrightnessSheet, SettingsChoice, label
 from system_status import snapshot, gib
 
@@ -35,66 +33,127 @@ class DisplaySheet(BrightnessSheet):
 
 
 class EnergySheet(Sheet):
+    PROFILES = (
+        ("Energiesparen", "power-saver", "Weniger Energieverbrauch, längere Akkulaufzeit."),
+        ("Ausgeglichen", "balanced", "Eine ausgewogene Mischung aus Leistung und Energieverbrauch."),
+        ("Leistung", "performance", "Mehr Leistung bei höherem Energieverbrauch."),
+    )
+
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Energie", "Das gewählte Profil bleibt auch nach Anmeldung und Updates erhalten.")
-        self.center = parent.home.notifications
-        self.profile = SettingsChoice([
-            ("Vereinsbetrieb", "club", "Bildschirm bleibt an. Kein automatischer Standby."),
-            ("Laptopbetrieb", "laptop", "Nach 2 Min. abdunkeln, nach 5 Min. Bildschirm aus, nach 15 Min. Standby. Am Netzteil und am Akku."),
-            ("Eigene Einstellungen", "custom", "Zeiten und Verhalten selbst in den Energieeinstellungen festlegen."),
-        ])
-        self.profile.setAccessibleName("Energieprofil")
-        try:
-            key = json.loads((Path.home() / ".config/saar-fighters/energy.json").read_text()).get("profile", "club") if not client.preview else "club"
-        except (OSError, ValueError, AttributeError):
-            key = "club"
-        self.profile.setCurrentIndex(max(0, self.profile.findData(key)))
+        super().__init__(parent, client, "Energie", "Leistungsprofil für diesen Rechner. Änderungen werden direkt übernommen.")
+        self.profile = SettingsChoice(self.PROFILES)
+        self.profile.setAccessibleName("Linux-Leistungsprofil")
         self.body.addWidget(self.profile)
-        self.apply_button = QPushButton("Profil übernehmen")
-        self.apply_button.setObjectName("confirm")
-        self.apply_button.clicked.connect(self.apply)
-        actions = QHBoxLayout()
-        actions.addStretch()
-        actions.addWidget(self.apply_button)
-        self.body.addLayout(actions)
-        self.advanced = QPushButton("Weitere Energieeinstellungen …")
+        self.availability = label("")
+        self.body.addWidget(self.availability)
+        self.advanced = QPushButton("Bildschirm und Standby einrichten …")
         self.advanced.clicked.connect(lambda: open_module(self, "energy"))
         self.body.addWidget(self.advanced)
-        self.controls = [self.profile, self.apply_button, self.advanced]
+        self.body.addStretch()
+        self.controls = [self.profile, self.advanced]
+        self.available = set()
+        self.active = None
+        self.phase = None
+        self.pending_profile = None
         self.process = QProcess(self)
-        self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        environment = QProcessEnvironment.systemEnvironment()
+        environment.insert("LC_ALL", "C")
+        self.process.setProcessEnvironment(environment)
         self.process.finished.connect(self.completed)
         self.process.errorOccurred.connect(self.failed)
         self.timeout = QTimer(self)
         self.timeout.setSingleShot(True)
         self.timeout.timeout.connect(self.process.kill)
-        self.message.setText("Aktuelle Auswahl: " + self.profile.currentText())
-        self.profile.currentIndexChanged.connect(lambda _: self.message.setText(
-            "Ausgewählt: " + self.profile.currentText() + ". Mit „Profil übernehmen“ anwenden."))
-        self.body.addStretch()
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.setInterval(10000)
+        self.refresh_timer.timeout.connect(self.load)
+        self.finished.connect(self.refresh_timer.stop)
+        self.profile.currentIndexChanged.connect(self.apply)
+        self.load()
+        self.refresh_timer.start()
 
-    def apply(self):
-        if self.client.preview:
-            self.message.setText("Vorschau: Profil ausgewählt, keine Systemänderung.")
+    def run(self, phase, arguments):
+        self.phase = phase
+        self.working(True)
+        self.timeout.start(10000)
+        self.process.start("powerprofilesctl", arguments)
+
+    def load(self):
+        if self.busy or self.closed:
             return
-        self.working(True, "Profil wird übernommen …")
-        helper = Path(__file__).resolve().parents[1] / "system/energy_profile.py"
-        self.process.start(sys.executable, [str(helper), self.profile.currentData()])
-        self.timeout.start(20000)
+        if self.client.preview:
+            self.available = {key for _, key, _ in self.PROFILES}
+            self.show_active(self.active or "balanced")
+        else:
+            self.run("list", ["list"])
+
+    def show_active(self, key):
+        if key not in self.available:
+            self.unavailable("Das aktuelle Leistungsprofil konnte nicht gelesen werden.")
+            return
+        self.active = key
+        self.working(False)
+        self.profile.blockSignals(True)
+        self.profile.setCurrentIndex(self.profile.findData(key))
+        self.profile.blockSignals(False)
+        for index, (_, profile, _) in enumerate(self.PROFILES):
+            self.profile.group.button(index).setEnabled(profile in self.available)
+        self.availability.setText("Leistung wird von diesem Rechner nicht angeboten." if "performance" not in self.available else "")
+        self.availability.setVisible(bool(self.availability.text()))
+        self.message.setText(("Vorschau · Aktiv: " if self.client.preview else "Aktiv: ") + self.profile.currentText())
+
+    def apply(self, *_):
+        key = self.profile.currentData()
+        if self.busy or key not in self.available:
+            return
+        if self.client.preview:
+            self.show_active(key)
+            return
+        self.pending_profile = key
+        self.message.setText("Leistungsprofil wird geändert …")
+        self.run("set", ["set", key])
 
     def completed(self, code, status):
         self.timeout.stop()
-        self.working(False)
-        message = bytes(self.process.readAllStandardOutput()).decode("utf-8", errors="replace").strip()
-        self.message.setText(message or "Das Energieprofil konnte nicht vollständig übernommen werden.")
-        center = self.center
-        if center:
-            center.add("Energieprofil" if code == 0 else "Energieprofil prüfen", self.message.text())
+        if self.closed:
+            return
+        output = bytes(self.process.readAllStandardOutput()).decode("utf-8", errors="replace").strip()
+        detail = bytes(self.process.readAllStandardError()).decode("utf-8", errors="replace").strip()
+        if code or status != QProcess.ExitStatus.NormalExit:
+            if self.phase == "set" and self.active:
+                self.show_active(self.active)
+                self.message.setText("Leistungsprofil konnte nicht geändert werden. " + detail[:250])
+            else:
+                self.unavailable("Linux-Energieverwaltung ist nicht erreichbar. Bitte Systemupdate und Energiedienst prüfen.")
+            return
+        if self.phase == "list":
+            self.available = set(re.findall(r"(?m)^\s*\*?\s*(power-saver|balanced|performance):\s*$", output))
+            if not self.available:
+                self.unavailable("Dieser Rechner bietet keine unterstützten Leistungsprofile an.")
+                return
+            self.run("get", ["get"])
+        elif self.phase == "set":
+            self.run("verify", ["get"])
+        else:
+            self.show_active(output)
+            if self.phase == "verify" and output != self.pending_profile:
+                self.message.setText("Das angeforderte Profil ist nicht aktiv. Aktuell: " + self.profile.currentText())
+
+    def unavailable(self, message):
+        self.working(False, message)
+        self.profile.setEnabled(False)
+        self.profile.blockSignals(True)
+        self.profile.group.setExclusive(False)
+        for button in self.profile.group.buttons():
+            button.setChecked(False)
+        self.profile.group.setExclusive(True)
+        self.profile.blockSignals(False)
+        self.active = None
 
     def failed(self, error):
         if error == QProcess.ProcessError.FailedToStart:
             self.timeout.stop()
-            self.working(False, "Die Energieverwaltung konnte nicht gestartet werden.")
+            self.unavailable("Linux-Leistungsprofile fehlen. Bitte ein Systemupdate ausführen (power-profiles-daemon).")
 
 
 class SystemSheet(Sheet):

@@ -34,6 +34,7 @@ bluez-utils
 plasma-desktop
 kscreen
 powerdevil
+power-profiles-daemon
 systemsettings
 plasma-nm
 plasma-pa

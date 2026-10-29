@@ -42,7 +42,7 @@ git -c core.hooksPath=/dev/null clone --depth=1 --single-branch --branch main \
     https://github.com/0Inexis0/saar-fighters.git "$stage/source"
 source_dir=$stage/source
 revision=$(git -C "$source_dir" rev-parse HEAD)
-packages=(plasma-desktop kscreen powerdevil systemsettings plasma-nm plasma-pa bluedevil breeze-gtk sddm xorg-server
+packages=(plasma-desktop kscreen powerdevil power-profiles-daemon systemsettings plasma-nm plasma-pa bluedevil breeze-gtk sddm xorg-server
     mesa pyside6 python-dbus-next qt6-svg qt6-tools qt6-translations upower libpulse
     networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
     dolphin konsole flatpak vlc vlc-plugins-all noto-fonts

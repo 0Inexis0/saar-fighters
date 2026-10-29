@@ -28,6 +28,46 @@ def label(text="", style=""):
     return widget
 
 
+class SettingsOption(QRadioButton):
+    """A whole-row native radio control with a trailing selection mark."""
+    def __init__(self, title, description):
+        super().__init__(title)
+        self.setAccessibleName(title)
+        self.setAccessibleDescription(description)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        content = QVBoxLayout(self)
+        content.setContentsMargins(16, 14, 42, 14)
+        content.setSpacing(5)
+        heading = label(title, "font-size: 14px; font-weight: 600;")
+        heading.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        content.addWidget(heading)
+        if description:
+            detail = label(description, "font-size: 12px; color: #b5bcac;")
+            detail.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            content.addWidget(detail)
+        self.setMinimumHeight(48 if not description else 76)
+
+    def hitButton(self, position):
+        return self.rect().contains(position)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setOpacity(1.0 if self.isEnabled() else 0.35)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#353e2d" if self.isChecked() else "#2c3127"))
+        painter.drawRoundedRect(QRectF(self.rect()), 8, 8)
+        if self.isChecked():
+            painter.setPen(QPen(QColor("#c1d69e"), 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+            x, y = self.width() - 26, self.height() // 2
+            painter.drawLine(x - 5, y, x - 1, y + 4)
+            painter.drawLine(x - 1, y + 4, x + 7, y - 5)
+        if self.hasFocus():
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(QColor("#c1d69e"), 1))
+            painter.drawRoundedRect(QRectF(self.rect()).adjusted(1, 1, -1, -1), 8, 8)
+
+
 class SettingsChoice(QWidget):
     """Visible, keyboard-accessible exclusive choices for short settings lists."""
     currentIndexChanged = Signal(int)
@@ -39,47 +79,12 @@ class SettingsChoice(QWidget):
         layout = QHBoxLayout(self) if compact else QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6 if compact else 1)
-        self.setStyleSheet("""
-            QFrame#choiceRow { background: #30342a; border-radius: 10px; }
-            QFrame#choiceRow[selected="true"] { background: #3c4430; }
-            QRadioButton { spacing: 12px; font-size: 14px; font-weight: 600;
-                           padding: 14px; background: transparent; }
-            QRadioButton:hover { color: #ffffff; }
-            QRadioButton:focus { background: #454c37; border-radius: 8px; }
-            QRadioButton:disabled { color: #929382; }
-            QRadioButton::indicator { width: 18px; height: 18px; border-radius: 10px;
-                                    border: 1px solid #80856c; background: #25281f; }
-            QRadioButton::indicator:checked { background: #c0c699; border: 1px solid #c0c699;
-                                             image: none; }
-            QRadioButton::indicator:disabled { background: #55594a; }
-            QLabel { color: #b9bbaa; font-size: 12px; background: transparent; }
-        """)
         for index, (title, key, description) in enumerate(choices):
-            frame = QFrame()
-            frame.setObjectName("choiceRow")
-            row = QVBoxLayout(frame)
-            row.setContentsMargins(0, 0, 0, 0)
-            row.setSpacing(0)
-            button = QRadioButton(title)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setAccessibleDescription(description)
+            button = SettingsOption(title, description)
             self.group.addButton(button, index)
-            row.addWidget(button)
-            if description:
-                detail = label(description)
-                detail.setContentsMargins(45, 0, 16, 14)
-                row.addWidget(detail)
-            button.toggled.connect(lambda checked, target=frame: self.style_row(target, checked))
-            layout.addWidget(frame)
+            layout.addWidget(button)
         self.group.button(0).setChecked(True)
         self.group.idToggled.connect(lambda index, checked: self.currentIndexChanged.emit(index) if checked else None)
-
-    @staticmethod
-    def style_row(frame, selected):
-        frame.setProperty("selected", selected)
-        frame.style().unpolish(frame)
-        frame.style().polish(frame)
-        frame.update()
 
     def currentIndex(self):
         return self.group.checkedId()
@@ -93,10 +98,10 @@ class SettingsChoice(QWidget):
         return next((i for i, choice in enumerate(self.choices) if choice[1] == key), -1)
 
     def currentData(self):
-        return self.choices[self.currentIndex()][1]
+        return self.choices[self.currentIndex()][1] if self.currentIndex() >= 0 else None
 
     def currentText(self):
-        return self.choices[self.currentIndex()][0]
+        return self.choices[self.currentIndex()][0] if self.currentIndex() >= 0 else ""
 
 
 class RemoteToggle(QCheckBox):

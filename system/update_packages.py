@@ -9,7 +9,7 @@ import tempfile
 
 
 def run_upgrade(extra=()):
-    command = ["pacman", *extra, "-Syu", "--needed", "--noconfirm", "git", "openssh", "kscreen", "powerdevil", "systemsettings"]
+    command = ["pacman", *extra, "-Syu", "--needed", "--noconfirm", "git", "openssh", "kscreen", "powerdevil", "power-profiles-daemon", "systemsettings"]
     signature_error = False
     with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           text=True, errors="replace", env={**os.environ, "LC_ALL": "C"}) as process:

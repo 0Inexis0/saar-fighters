@@ -12,7 +12,7 @@ from configure_display import configure
 from energy_profile import apply
 from notifications import NotificationCenter
 from system_status import snapshot
-from system_settings import open_module
+from system_settings import EnergySheet, open_module
 from main import Home, SettingsDialog, STYLE
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtTest import QTest
@@ -106,13 +106,13 @@ class SettingsUiTests(unittest.TestCase):
             choice = page.profile
             choice.group.button(0).setFocus()
             QTest.keyClick(choice.group.button(0), Qt.Key.Key_Down)
-            self.assertEqual(choice.currentData(), "laptop")
-            self.assertIn("Laptopbetrieb", page.message.text())
+            self.assertEqual(choice.currentData(), "balanced")
+            self.assertIn("Ausgeglichen", page.message.text())
             self.assertEqual(sum(b.isChecked() for b in choice.group.buttons()), 1)
             page.client.preview = False
             with patch.object(page.process, "start") as start:
                 page.apply()
-                self.assertEqual(start.call_args.args[1][-1], "laptop")
+                self.assertEqual(start.call_args.args, ("powerprofilesctl", ["set", "balanced"]))
                 self.assertFalse(choice.isEnabled())
                 self.assertFalse(dialog.back_button.isEnabled())
             page.timeout.stop()
@@ -164,6 +164,49 @@ class SettingsUiTests(unittest.TestCase):
                 target.mkdir(parents=True, exist_ok=True)
                 dialog.grab().save(str(target / (section + ".png")))
         finally:
+            dialog.close()
+            home.close()
+            dialog.deleteLater()
+            home.deleteLater()
+
+    def test_linux_profiles_availability_readback_and_failures(self):
+        home = Home(preview=True)
+        dialog = SettingsDialog(home, section="energy")
+        page = dialog.page
+        try:
+            page.client.preview = False
+            page.phase = "list"
+            with patch.object(page.process, "readAllStandardOutput", return_value=b"  power-saver:\n* balanced:\n"), patch.object(page.process, "readAllStandardError", return_value=b""), patch.object(page.process, "start") as start:
+                page.completed(0, QProcess.ExitStatus.NormalExit)
+                self.assertEqual(start.call_args.args, ("powerprofilesctl", ["get"]))
+            page.timeout.stop()
+            page.show_active("balanced")
+            self.assertFalse(page.profile.group.button(2).isEnabled())
+            self.assertEqual(page.profile.currentData(), "balanced")
+            with patch.object(page.process, "start") as start:
+                page.profile.setCurrentIndex(0)
+                self.assertEqual(start.call_args.args, ("powerprofilesctl", ["set", "power-saver"]))
+            page.timeout.stop()
+            with patch.object(page.process, "readAllStandardOutput", return_value=b""), patch.object(page.process, "readAllStandardError", return_value=b"Permission denied"):
+                page.completed(1, QProcess.ExitStatus.NormalExit)
+            self.assertEqual(page.profile.currentData(), "balanced")
+            self.assertIn("nicht geändert", page.message.text())
+            page.phase = "verify"
+            page.pending_profile = "power-saver"
+            with patch.object(page.process, "readAllStandardOutput", return_value=b"power-saver\n"), patch.object(page.process, "readAllStandardError", return_value=b""):
+                page.completed(0, QProcess.ExitStatus.NormalExit)
+            self.assertEqual(page.active, "power-saver")
+            page.failed(QProcess.ProcessError.FailedToStart)
+            self.assertFalse(page.profile.isEnabled())
+            self.assertEqual(page.profile.group.checkedId(), -1)
+            page.available = {"balanced", "power-saver"}
+            page.show_active("balanced")
+            self.assertTrue(page.profile.isEnabled())
+            self.assertFalse(page.profile.group.button(2).isEnabled())
+        finally:
+            page.client.preview = True
+            page.timeout.stop()
+            page.working(False)
             dialog.close()
             home.close()
             dialog.deleteLater()

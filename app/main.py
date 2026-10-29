@@ -648,16 +648,16 @@ class SettingsDialog(QDialog):
         self.update_page = None
         self.setWindowTitle("Einstellungen")
         self.setObjectName("settingsDialog")
-        self.resize(min(home.width() - 32, 1040), min(home.height() - 24, 660))
+        self.resize(min(home.width() - 32, 1040), min(home.height() - 24, 760))
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.sidebar = QFrame()
         self.sidebar.setObjectName("settingsSidebar")
-        self.sidebar.setMinimumWidth(200)
+        self.sidebar.setMinimumWidth(238)
         navigation = QVBoxLayout(self.sidebar)
-        navigation.setContentsMargins(16, 24, 16, 16)
-        navigation.setSpacing(6)
+        navigation.setContentsMargins(14, 22, 14, 14)
+        navigation.setSpacing(3)
         navigation.addWidget(label("Einstellungen", "font-size: 21px; font-weight: 700;"))
         self.nav_buttons = {}
         for category, entries in (
@@ -665,17 +665,19 @@ class SettingsDialog(QDialog):
                 ("wifi", "WLAN", "wifi"),
                 ("bluetooth", "Bluetooth", "bluetooth"),
             )),
-            ("Gerät & Alltag", (
-                ("sound", "Lautstärke", "sound"),
-                ("brightness", "Bildschirm", "brightness"),
-                ("power", "Energie", "energy"),
-                ("settings", "Meldungen", "notifications"),
+            ("Gerät", (
+                ("sound", "Ton && Lautsprecher", "sound"),
+                ("brightness", "Bildschirm && Helligkeit", "brightness"),
+                ("power", "Energie && Leistung", "energy"),
             )),
-            ("System & Wartung", (
-                ("settings", "Systemübersicht", "system"),
+            ("Allgemein", (
+                ("settings", "Mitteilungen", "notifications"),
+                ("settings", "Systeminformationen", "system"),
+            )),
+            ("Wartung", (
                 ("update", "Updates", "updates"),
                 ("settings", "Fernwartung", "remote"),
-                ("restart", "Wiederherstellen", "recovery"),
+                ("restart", "Wiederherstellung", "recovery"),
                 ("settings", "Systemprotokolle", "logs"),
             )),
         ):
@@ -687,7 +689,7 @@ class SettingsDialog(QDialog):
                 button = QPushButton(title)
                 button.setObjectName("settingsNav")
                 button.setIcon(button_icon(symbol, 22))
-                button.setIconSize(QSize(22, 22))
+                button.setIconSize(QSize(18, 18))
                 button.setCheckable(True)
                 button.setAutoDefault(False)
                 button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -701,13 +703,23 @@ class SettingsDialog(QDialog):
         self.back_button.setAccessibleName("Zurück zur Startseite")
         self.back_button.setAutoDefault(False)
         self.back_button.clicked.connect(self.reject)
-        navigation.addWidget(self.back_button)
         sidebar_scroll = QScrollArea()
         sidebar_scroll.setWidgetResizable(True)
         sidebar_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        sidebar_scroll.setFixedWidth(220)
         sidebar_scroll.setWidget(self.sidebar)
-        layout.addWidget(sidebar_scroll)
+        self.sidebar_scroll = sidebar_scroll
+        rail = QFrame()
+        rail.setObjectName("settingsRail")
+        rail.setFixedWidth(254)
+        rail_layout = QVBoxLayout(rail)
+        rail_layout.setContentsMargins(0, 0, 0, 0)
+        rail_layout.setSpacing(0)
+        rail_layout.addWidget(sidebar_scroll, 1)
+        footer = QHBoxLayout()
+        footer.setContentsMargins(14, 10, 14, 14)
+        footer.addWidget(self.back_button)
+        rail_layout.addLayout(footer)
+        layout.addWidget(rail)
         self.content = QScrollArea()
         self.content.setObjectName("settingsContent")
         self.content.setWidgetResizable(True)
@@ -780,6 +792,7 @@ class SettingsDialog(QDialog):
         self.content.setWidget(self.page)
         self.page.show()
         self.content.verticalScrollBar().setValue(0)
+        self.sidebar_scroll.ensureWidgetVisible(self.nav_buttons[section])
         self.update_navigation()
 
     def reject(self):
@@ -1264,8 +1277,18 @@ QLabel#tileTitle { font-size: 24px; font-weight: 750; }
 QLabel#tileSubtitle { font-size: 12px; font-weight: 400; }
 QDialog, QMessageBox { background: #25281f; }
 QDialog#deviceSheet { background: #25281f; border: none; border-radius: 18px; }
-QFrame#settingsSidebar { background: #20231b; border-right: 1px solid #3a3e30; }
+QFrame#settingsSidebar { background: #20231e; border-right: 1px solid #34392f; }
+QFrame#settingsRail { background: #20231e; }
 QScrollArea#settingsContent { background: #25281f; }
+QDialog#settingsDialog QScrollBar:vertical { background: transparent; width: 6px; margin: 4px 0; }
+QDialog#settingsDialog QScrollBar::handle:vertical { background: #505647; border-radius: 3px; min-height: 36px; }
+QDialog#settingsDialog QScrollBar::add-line:vertical, QDialog#settingsDialog QScrollBar::sub-line:vertical { height: 0; }
+QDialog#settingsDialog QScrollBar::add-page:vertical, QDialog#settingsDialog QScrollBar::sub-page:vertical { background: transparent; }
+QDialog#settingsDialog QPushButton#settingsNav { padding: 6px 10px; min-height: 24px; font-size: 13px; font-weight: 400; }
+QDialog#settingsDialog QPushButton#settingsNav:checked { background: #414b34; font-weight: 600; }
+QDialog#settingsDialog QListWidget { background: #2c3027; padding: 4px; }
+QDialog#settingsDialog QPlainTextEdit { background: #20241d; }
+
 QDialog#settingsDialog QPushButton { padding: 10px 12px; }
 QPushButton#settingsNav { background: transparent; text-align: left; border-radius: 9px;
                          border: none; }
