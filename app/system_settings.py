@@ -2,7 +2,7 @@
 import re
 import shutil
 from PySide6.QtCore import QProcess, QProcessEnvironment, QTimer
-from PySide6.QtWidgets import QPushButton, QPlainTextEdit
+from PySide6.QtWidgets import QPushButton
 from devices import Sheet, BrightnessSheet, SettingsChoice, label
 from system_status import snapshot, gib
 
@@ -171,26 +171,3 @@ class SystemSheet(Sheet):
     def refresh(self):
         data = snapshot() if not self.client.preview else {"version": "Vorschau", "kernel": "Linux (Beispiel)", "architecture": "x86_64", "memory_used": 2 * 1024**3, "memory_total": 4 * 1024**3, "disk_free": 20 * 1024**3, "disk_total": 32 * 1024**3, "last_update": "Beispiel: heute, 10:30"}
         self.info.setText(f"Oberflächenstand: {data['version']}\n\nKernel: {data['kernel']}\nArchitektur: {data['architecture']}\n\nArbeitsspeicher: {gib(data['memory_used'])} von {gib(data['memory_total'])} belegt\n\nSystemlaufwerk: {gib(data['disk_free'])} von {gib(data['disk_total'])} frei\n\nLetztes erfolgreiches Systemupdate:\n{data['last_update']}")
-
-
-class NotificationsSheet(Sheet):
-    def __init__(self, parent, client):
-        super().__init__(parent, client, "Mitteilungen", "Meldungen zu Geräten und Updates.")
-        self.center = parent.home.notifications
-        self.output = QPlainTextEdit()
-        self.output.setReadOnly(True)
-        self.output.setAccessibleName("Benachrichtigungsverlauf")
-        self.body.addWidget(self.output, 1)
-        read = QPushButton("Alle als gelesen markieren")
-        read.clicked.connect(self.center.mark_read)
-        self.body.addWidget(read)
-        clear = QPushButton("Verlauf leeren")
-        clear.clicked.connect(self.center.clear)
-        self.body.addWidget(clear)
-        self.center.changed.connect(self.refresh)
-        self.refresh()
-
-    def refresh(self):
-        self.message.setText(self.center.storage_error or "")
-        self.output.setPlaceholderText("Keine Mitteilungen")
-        self.output.setPlainText("\n\n".join(f"{'NEU · ' if not item['read'] else ''}{item['title']}\n{item['time']}\n{item['body']}" for item in reversed(self.center.items)))

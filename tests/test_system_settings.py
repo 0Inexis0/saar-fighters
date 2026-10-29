@@ -148,7 +148,8 @@ class SettingsUiTests(unittest.TestCase):
         dialog.show()
         QTest.qWait(100)
         try:
-            for section in ("brightness", "energy", "system", "notifications"):
+            self.assertNotIn("notifications", dialog.nav_buttons)
+            for section in ("brightness", "energy", "system"):
                 dialog.select_section(section)
                 QTest.qWait(100)
                 self.assertEqual(dialog.current_section, section)

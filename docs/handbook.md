@@ -349,7 +349,9 @@ Adresse direkt. Das alte Repository unter diesem Namen nicht neu anlegen.
   Architektur, belegten RAM, freien Speicher auf dem Systemlaufwerk und den
   letzten erfolgreich abgeschlossenen Systemupdatezeitpunkt. Fehlende Werte
   werden als nicht verfügbar angezeigt. Aktualisierung alle zehn Sekunden.
-- „Meldungen“ ist über die Kopfzeile und die Einstellungen erreichbar. Die lokale
+- Die Glocke in der Kopfzeile öffnet „Mitteilungen“ als eigenes Fenster im
+  Olive-Design mit einzelnen Meldungen, Zeitangaben und Gelesenstatus.
+  „Schließen“ oder Escape führt zur vorherigen Ansicht zurück. Die lokale
   Historie enthält bis zu 100 Updateergebnisse, Energieprofil-Ergebnisse,
   Fehler bei der Statusabfrage, Warnungen bei höchstens 15 Prozent Akku ohne
   Netzteil sowie weniger als 2 GiB oder fünf Prozent freiem Systemspeicher.

@@ -24,8 +24,9 @@ from runtime_health import record as record_health, categories as error_categori
 from browser import browser_command
 from maintenance import MaintenancePage
 from devices import NoticeLabel
-from system_settings import DisplaySheet, EnergySheet, SystemSheet, NotificationsSheet
+from system_settings import DisplaySheet, EnergySheet, SystemSheet
 from notifications import NotificationCenter
+from notification_window import NotificationsDialog
 from system_status import snapshot as system_snapshot
 
 HERE = Path(__file__).resolve().parent
@@ -672,7 +673,6 @@ class SettingsDialog(QDialog):
                 ("power", "Energie && Leistung", "energy"),
             )),
             ("Allgemein", (
-                ("settings", "Mitteilungen", "notifications"),
                 ("settings", "Systeminformationen", "system"),
             )),
             ("Wartung", (
@@ -779,8 +779,7 @@ class SettingsDialog(QDialog):
         else:
             self.page = {"wifi": WifiSheet, "bluetooth": BluetoothSheet,
                          "sound": AudioSheet, "brightness": DisplaySheet, "logs": LogsSheet,
-                         "energy": EnergySheet, "system": SystemSheet,
-                         "notifications": NotificationsSheet}[section](
+                         "energy": EnergySheet, "system": SystemSheet}[section](
                 self, self.home.device_client)
         self.current_section = section
         # Reuse the device controls inside the settings window instead of opening a modal.
@@ -1067,7 +1066,7 @@ class Home(QWidget):
             self.notifications.disk(data["disk_free"], data["disk_total"])
 
     def show_notifications(self):
-        dialog = SettingsDialog(self, "notifications")
+        dialog = NotificationsDialog(self)
         dialog.exec()
         dialog.deleteLater()
 
@@ -1300,6 +1299,14 @@ QPushButton#statusControl { background: transparent; padding: 0; min-height: 0; 
 QPushButton#statusControl:hover, QPushButton#statusControl:focus { background: #454a36; }
 QPushButton#statusControl:pressed { background: #53583e; }
 QLabel#notificationBadge { background: #c3b48b; color: #24261b; border-radius: 7px; font-size: 10px; font-weight: 800; }
+QDialog#notificationsDialog { background: #25281f; border-radius: 18px; }
+QDialog#notificationsDialog QScrollArea, QWidget#notificationList { background: #25281f; }
+QFrame#notificationCard { background: #2e3328; border-radius: 12px; }
+QFrame#notificationCard[unread="true"] { background: #3a4230; }
+QDialog#notificationsDialog QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }
+QDialog#notificationsDialog QScrollBar::handle:vertical { background: #59614b; border-radius: 3px; min-height: 36px; }
+QDialog#notificationsDialog QScrollBar::add-line:vertical, QDialog#notificationsDialog QScrollBar::sub-line:vertical { height: 0; }
+QDialog#notificationsDialog QScrollBar::add-page:vertical, QDialog#notificationsDialog QScrollBar::sub-page:vertical { background: transparent; }
 QComboBox { background: #363b2e; color: #eeece1; border: none; border-radius: 6px; padding: 5px; min-height: 24px; }
 QComboBox QAbstractItemView { background: #292e23; color: #eeece1; selection-background-color: #50563c; }
 QCheckBox { spacing: 8px; }
