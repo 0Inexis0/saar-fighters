@@ -345,8 +345,7 @@ class MusicTile(QFrame):
         data = data if not error else {}
         identity = tuple(data.get(key) for key in ("player", "track_id", "duration"))
         if identity != tuple(self.state.get(key) for key in ("player", "track_id", "duration")):
-            self.position.delay.stop()
-            self.position.setSliderDown(False)
+            self.position.cancel()
             self.seek_identity = None
         self.state = dict(data)
         duration = data.get("duration", 0)

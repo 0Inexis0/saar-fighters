@@ -247,6 +247,84 @@ class MusicUiTests(unittest.TestCase):
             action.assert_not_called()
             self.assertEqual(dialog.lyrics.count(), 0)
 
+    def test_pointer_sliders_send_clicked_and_dragged_values_in_both_views(self):
+        self.home.quick_status("audio", {"control": {"volume": 54}, "outputs": []}, None)
+        for expanded in (False, True):
+            self.home.quick_status("media", dict(STATE), None)
+            view = self.open() if expanded else self.home.music_tile
+            for name in ("position", "volume"):
+                slider = getattr(view, name)
+                for drag in (False, True):
+                    with self.subTest(expanded=expanded, slider=name, drag=drag):
+                        self.assertTrue(slider.isEnabled())
+                        slider.reflect(slider.maximum() // 2)
+                        start = QPoint(slider.width() * 3 // 4, slider.height() // 2)
+                        end = QPoint(slider.width() // 4, slider.height() // 2) if drag else start
+                        with patch.object(self.home, "quick_action") as action:
+                            QTest.mousePress(slider, Qt.MouseButton.LeftButton, pos=start)
+                            if drag:
+                                QTest.mouseMove(slider, end)
+                            action.assert_not_called()
+                            QTest.mouseRelease(slider, Qt.MouseButton.LeftButton, pos=end)
+                            action.assert_called_once()
+                            fraction = slider.value() / slider.maximum()
+                            self.assertAlmostEqual(fraction, .25 if drag else .75, delta=.1)
+                            if name == "position":
+                                action.assert_called_with("media", "seek", player=STATE["player"],
+                                                          track_id=STATE["track_id"], position=fraction * 180)
+                            elif expanded:
+                                action.assert_called_with("media", "volume", player=STATE["player"], value=slider.value())
+                            else:
+                                action.assert_called_with("audio", "volume", value=slider.value())
+                            QTest.qWait(400)
+                            action.assert_called_once()
+            if expanded:
+                view.reject()
+
+    def test_pointer_seek_is_cancelled_when_track_changes_in_both_views(self):
+        for expanded in (False, True):
+            self.home.quick_status("media", dict(STATE), None)
+            view = self.open() if expanded else self.home.music_tile
+            slider = view.position
+            point = QPoint(slider.width() * 3 // 4, slider.height() // 2)
+            with self.subTest(expanded=expanded), patch.object(self.home, "quick_action") as action:
+                QTest.mousePress(slider, Qt.MouseButton.LeftButton, pos=point)
+                self.home.quick_status("media", dict(STATE, track_id="/track/2"), None)
+                QTest.mouseRelease(slider, Qt.MouseButton.LeftButton, pos=point)
+                QTest.qWait(400)
+                action.assert_not_called()
+                self.assertFalse(slider.isSliderDown())
+            if expanded:
+                view.reject()
+
+    def test_pointer_release_dispatches_to_device_service(self):
+        self.home.preview = False
+        try:
+            for expanded in (False, True):
+                view = self.open() if expanded else self.home.music_tile
+                for name in ("position", "volume"):
+                    self.home.quick_busy = {"media": False, "audio": False}
+                    self.home.quick_status("media", dict(STATE), None)
+                    self.home.quick_status("audio", {"control": {"volume": 54}, "outputs": []}, None)
+                    slider = getattr(view, name)
+                    with self.subTest(expanded=expanded, slider=name), patch.object(self.home.device_client, "request") as request:
+                        QTest.mouseClick(slider, Qt.MouseButton.LeftButton,
+                                         pos=QPoint(slider.width() * 3 // 4, slider.height() // 2))
+                        request.assert_called_once()
+                        operation, args = request.call_args.args[:2]
+                        if name == "position":
+                            self.assertEqual(operation, "media_seek")
+                            self.assertEqual(args, {"player": STATE["player"], "track_id": STATE["track_id"],
+                                                    "position": slider.value() / 1000 * STATE["duration"]})
+                        elif expanded:
+                            self.assertEqual((operation, args), ("media_volume", {"player": STATE["player"], "value": slider.value()}))
+                        else:
+                            self.assertEqual((operation, args), ("audio_volume", {"value": slider.value()}))
+                if expanded:
+                    view.reject()
+        finally:
+            self.home.preview = True
+
     def test_closed_player_disables_controls_clears_art_and_lyrics(self):
         dialog = self.open()
         self.home.quick_status("media", {}, None)

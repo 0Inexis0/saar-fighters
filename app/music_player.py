@@ -7,7 +7,8 @@ from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QT
 from PySide6.QtGui import QColor, QFont, QImage, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QFrame, QHBoxLayout, QLabel,
                               QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
-                              QSlider, QStyledItemDelegate, QVBoxLayout, QWidget)
+                              QSlider, QStyle, QStyledItemDelegate, QStyleOptionSlider,
+                              QVBoxLayout, QWidget)
 from media_content import LyricsLoader
 from music_visualizer import OutputMonitor, FREQUENCIES
 
@@ -90,6 +91,56 @@ class PlayerSlider(QSlider):
         self.delay.timeout.connect(self.commit)
         self.sliderReleased.connect(self.commit)
         self.valueChanged.connect(self.schedule)
+
+    def pointer_value(self, point):
+        option = QStyleOptionSlider()
+        self.initStyleOption(option)
+        groove = self.style().subControlRect(QStyle.ComplexControl.CC_Slider, option,
+                                             QStyle.SubControl.SC_SliderGroove, self)
+        handle = self.style().subControlRect(QStyle.ComplexControl.CC_Slider, option,
+                                             QStyle.SubControl.SC_SliderHandle, self)
+        return QStyle.sliderValueFromPosition(self.minimum(), self.maximum(),
+                                              point.x() - groove.x() - self.drag_offset,
+                                              max(1, groove.width() - handle.width()), option.upsideDown)
+
+    def mousePressEvent(self, event):
+        if event.button() != Qt.MouseButton.LeftButton:
+            super().mousePressEvent(event)
+            return
+        option = QStyleOptionSlider()
+        self.initStyleOption(option)
+        handle = self.style().subControlRect(QStyle.ComplexControl.CC_Slider, option,
+                                             QStyle.SubControl.SC_SliderHandle, self)
+        point = event.position().toPoint()
+        self.drag_offset = point.x() - handle.x() if handle.contains(point) else handle.width() // 2
+        self.delay.stop()
+        self.setFocus(Qt.FocusReason.MouseFocusReason)
+        # Capture the player/track before changing the value, including groove clicks.
+        self.setSliderDown(True)
+        self.setValue(self.pointer_value(point))
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self.isSliderDown():
+            self.setValue(self.pointer_value(event.position().toPoint()))
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.isSliderDown():
+                self.setValue(self.pointer_value(event.position().toPoint()))
+                self.setSliderDown(False)
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
+
+    def cancel(self):
+        self.delay.stop()
+        blocked = self.blockSignals(True)
+        self.setSliderDown(False)
+        self.blockSignals(blocked)
 
     def schedule(self):
         if not self.isSliderDown():
@@ -491,8 +542,7 @@ class MusicPlayerDialog(QDialog):
         if key != self.track_key:
             self.track_key = key
             self.seek_identity = None
-            self.position.delay.stop()
-            self.position.setSliderDown(False)
+            self.position.cancel()
             self.follow_after = 0
         self.state = dict(state)
         self.sample_time = time.monotonic()
