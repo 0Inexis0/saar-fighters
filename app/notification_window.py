@@ -1,9 +1,9 @@
-"""Standalone notification inbox for the dashboard bell."""
+"""Notification panel anchored to the dashboard bell, including on Wayland."""
 from datetime import datetime
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent, QPoint, QTimer
 from PySide6.QtWidgets import (
-    QDialog, QFrame, QHBoxLayout, QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QApplication, QDialog, QFrame, QHBoxLayout, QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from devices import NoticeLabel, label
@@ -12,11 +12,12 @@ from devices import NoticeLabel, label
 class NotificationsDialog(QDialog):
     def __init__(self, home):
         super().__init__(home)
+        self.home = home
         self.center = home.notifications
         self.setWindowTitle("Mitteilungen")
         self.setObjectName("notificationsDialog")
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.resize(min(home.width() - 32, 580), min(home.height() - 32, 640))
+        # A child overlay uses parent coordinates; Wayland cannot recenter it.
+        self.setWindowFlags(Qt.WindowType.Widget)
         body = QVBoxLayout(self)
         body.setContentsMargins(24, 24, 24, 24)
         body.setSpacing(18)
@@ -38,7 +39,7 @@ class NotificationsDialog(QDialog):
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll.setAccessibleName("Mitteilungsverlauf")
         body.addWidget(self.scroll, 1)
-        self.message = NoticeLabel()
+        self.message = NoticeLabel(record_notifications=False)
         body.addWidget(self.message)
 
         actions = QHBoxLayout()
@@ -53,7 +54,42 @@ class NotificationsDialog(QDialog):
         body.addLayout(actions)
         self.center.changed.connect(self.refresh)
         self.refresh()
+
+    def place_at_bell(self):
+        anchor = self.home.notification_button
+        edge = anchor.mapTo(self.home, QPoint(anchor.width(), anchor.height()))
+        width = min(560, self.home.width() - 32)
+        y = edge.y() + 10
+        height = min(600, self.home.height() - y - 16)
+        self.resize(width, max(200, height))
+        self.move(max(16, min(edge.x() - self.width(), self.home.width() - self.width() - 16)), y)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.place_at_bell()
+        self.raise_()
         self.close_button.setFocus()
+        QApplication.instance().installEventFilter(self)
+
+    def hideEvent(self, event):
+        QApplication.instance().removeEventFilter(self)
+        super().hideEvent(event)
+
+    def eventFilter(self, watched, event):
+        if watched is self.home and event.type() == QEvent.Type.Resize:
+            QTimer.singleShot(0, self, self.place_at_bell)
+        elif watched is self.home and event.type() in (QEvent.Type.Hide, QEvent.Type.WindowDeactivate):
+            self.hide()
+        elif event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+            self.hide()
+            self.home.notification_button.setFocus()
+            return True
+        elif event.type() == QEvent.Type.MouseButtonPress:
+            point = event.globalPosition().toPoint()
+            bell = self.home.notification_button
+            if not self.rect().contains(self.mapFromGlobal(point)) and not bell.rect().contains(bell.mapFromGlobal(point)):
+                self.hide()
+        return super().eventFilter(watched, event)
 
     def refresh(self):
         position = self.scroll.verticalScrollBar().value()
@@ -61,7 +97,7 @@ class NotificationsDialog(QDialog):
         self.summary.setText(f"{unread} ungelesen" if unread else "Alles gelesen")
         self.read_button.setEnabled(unread > 0)
         self.clear_button.setEnabled(bool(self.center.items))
-        self.message.setText(self.center.storage_error)
+        self.message.setText("\n".join(filter(None, (self.center.storage_error, self.center.service_error))))
         content = QWidget()
         content.setObjectName("notificationList")
         rows = QVBoxLayout(content)
@@ -69,7 +105,7 @@ class NotificationsDialog(QDialog):
         rows.setSpacing(10)
         self.cards = []
         if not self.center.items:
-            self.summary.setText("Meldungen zu Geräten und Updates")
+            self.summary.setText("Alle App- und Systemmeldungen")
             rows.addStretch()
             empty = label("Keine Mitteilungen", "font-size: 18px; font-weight: 600;")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -88,7 +124,9 @@ class NotificationsDialog(QDialog):
                 timestamp = datetime.fromisoformat(item["time"]).astimezone().strftime("%d.%m.%Y · %H:%M")
             except ValueError:
                 timestamp = item["time"]
-            entry.addWidget(label(("Neu · " if not item["read"] else "") + timestamp,
+            source = item.get("source", "Saar-Fighters")
+            source = source if isinstance(source, str) else "Saar-Fighters"
+            entry.addWidget(label(("Neu · " if not item["read"] else "") + source + " · " + timestamp,
                                   "color: #c3b48b; font-size: 11px;"))
             entry.addWidget(label(item["title"], "font-size: 16px; font-weight: 600;"))
             detail = label(item["body"], "color: #d0d0c1;")
@@ -98,4 +136,4 @@ class NotificationsDialog(QDialog):
             self.cards.append(card)
         rows.addStretch()
         self.scroll.setWidget(content)
-        self.scroll.verticalScrollBar().setValue(position)
+        QTimer.singleShot(0, self, lambda: self.scroll.verticalScrollBar().setValue(position))

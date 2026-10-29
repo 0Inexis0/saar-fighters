@@ -27,6 +27,7 @@ from devices import NoticeLabel
 from system_settings import DisplaySheet, EnergySheet, SystemSheet
 from notifications import NotificationCenter
 from notification_window import NotificationsDialog
+from notification_bridge import NotificationBridge
 from system_status import snapshot as system_snapshot
 
 HERE = Path(__file__).resolve().parent
@@ -457,14 +458,10 @@ class UpdateDialog(QDialog):
         else:
             self.state.setText("Update fehlgeschlagen. Bitte die Ausgabe dem Administrator zeigen.")
             self.start.setEnabled(True)
-        if self.notifications:
-            self.notifications.add("Systemupdate", self.state.text())
 
     def process_error(self, error):
         if error == QProcess.ProcessError.FailedToStart:
             self.state.setText("Die Update-Verwaltung konnte nicht gestartet werden.")
-            if self.notifications:
-                self.notifications.add("Systemupdate nicht gestartet", self.state.text())
             self.close_button.setEnabled(True)
             self.start.setEnabled(True)
 
@@ -845,6 +842,8 @@ class Home(QWidget):
         header.setSpacing(6)
         self.device_client = DeviceClient(self, preview)
         self.notifications = NotificationCenter(self, preview)
+        self.notification_bridge = NotificationBridge(self.notifications, self, preview)
+        self.notification_dialog = None
         self.notification_button = StatusControl("bell", "Mitteilungen öffnen", self.show_notifications)
         self.notification_badge = QLabel(self.notification_button)
         self.notification_badge.setObjectName("notificationBadge")
@@ -1065,9 +1064,13 @@ class Home(QWidget):
             self.notifications.disk(data["disk_free"], data["disk_total"])
 
     def show_notifications(self):
-        dialog = NotificationsDialog(self)
-        dialog.exec()
-        dialog.deleteLater()
+        if self.notification_dialog is None:
+            self.notification_dialog = NotificationsDialog(self)
+        if self.notification_dialog.isVisible():
+            self.notification_dialog.hide()
+        else:
+            self.notification_dialog.show()
+            self.notification_dialog.raise_()
 
     def command_for(self, action):
         if action == "spotify":

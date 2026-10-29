@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QDialog, QFrame, QHBoxLayout, 
                               QSlider, QStyle, QStyledItemDelegate, QStyleOptionSlider,
                               QVBoxLayout, QWidget)
 from media_content import LyricsLoader
+from notifications import NoticeLabel
 from music_visualizer import OutputMonitor, FREQUENCIES
 
 
@@ -383,7 +384,8 @@ class MusicPlayerDialog(QDialog):
         self.retry.hide()
         right.addWidget(self.retry, 0, Qt.AlignmentFlag.AlignLeft)
         body.addWidget(self.lyrics_panel, 1)
-        self.message = text_label(size=12, color="#e1cba0")
+        self.message = NoticeLabel()
+        self.message.setStyleSheet("font-size: 12px; color: #e1cba0;")
         self.message.setWordWrap(True)
         self.message.hide()
         self.root.addWidget(self.message)

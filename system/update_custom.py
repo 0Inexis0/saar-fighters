@@ -29,6 +29,7 @@ INTEGRATIONS = (
     ("system/desktoptheme/saar-olive", "usr/share/plasma/desktoptheme/saar-olive", None),
 )
 REQUIRED = (
+    "app/notification_window.py", "app/notification_bridge.py", "app/notification_watch.py",
     "system/configure_wallet.py",
     "app/system_settings.py", "app/system_status.py", "app/notifications.py", "system/energy_profile.py",
     "system/update_packages.py",

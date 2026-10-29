@@ -349,9 +349,10 @@ Adresse direkt. Das alte Repository unter diesem Namen nicht neu anlegen.
   Architektur, belegten RAM, freien Speicher auf dem Systemlaufwerk und den
   letzten erfolgreich abgeschlossenen Systemupdatezeitpunkt. Fehlende Werte
   werden als nicht verfügbar angezeigt. Aktualisierung alle zehn Sekunden.
-- Die Glocke in der Kopfzeile öffnet „Mitteilungen“ als eigenes Fenster im
-  Olive-Design mit einzelnen Meldungen, Zeitangaben und Gelesenstatus.
-  „Schließen“ oder Escape führt zur vorherigen Ansicht zurück. Die lokale
+- Die Glocke in der Kopfzeile klappt „Mitteilungen“ direkt darunter oben rechts
+  im Olive-Design auf, mit App-Namen, Zeitangaben und Gelesenstatus.
+  Erneuter Klick auf die Glocke, ein Klick außerhalb, „Schließen“ oder Escape
+  schließt das Panel. Die vorherige Ansicht bleibt geöffnet. Die lokale
   Historie enthält bis zu 100 Updateergebnisse, Energieprofil-Ergebnisse,
   Fehler bei der Statusabfrage, Warnungen bei höchstens 15 Prozent Akku ohne
   Netzteil sowie weniger als 2 GiB oder fünf Prozent freiem Systemspeicher.
@@ -359,8 +360,18 @@ Adresse direkt. Das alte Repository unter diesem Namen nicht neu anlegen.
   einer Sitzung nur eine Meldung. Gelesenstatus und Verlauf bleiben erhalten;
   als gelesen markieren und Verlauf leeren sind separat möglich.
   Speicherung: `~/.local/state/saar-fighters/notifications.json`.
-  Dies ist die Meldungszentrale unserer Oberfläche, kein Ersatz für die
-  Benachrichtigungen fremder KDE-Anwendungen. Es erfolgt keine Online-Updateabfrage.
+  Auch Rückmeldungen aus Einstellungen, Wartung und Musikplayer landen hier.
+  Unter Linux übernimmt ein lesender Helfer neue Desktop-Benachrichtigungen
+  anderer Apps über `org.freedesktop.Notifications`, einschließlich kurzlebiger
+  Meldungen. Aktualisierungen derselben Meldung ersetzen den bisherigen Eintrag.
+  Plasma bleibt für die ursprünglichen Popups und deren Aktionsschaltflächen
+  zuständig. Die Glocke zeigt den gemeinsamen Textverlauf; sie importiert keine
+  älteren Plasma-Meldungen und keine internen Dialoge fremder Apps.
+  Der Helfer liest ausschließlich Benachrichtigungsaufrufe und Serverantworten
+  auf dem Benutzerbus. Wird Monitoring verweigert oder die Verbindung unterbrochen,
+  zeigt das Panel den Ausfall und versucht alle 15 Sekunden erneut zu verbinden.
+  App-Namen, Titel und Meldungstexte werden lokal gespeichert und können über
+  „Verlauf leeren“ gelöscht werden. Es erfolgt keine Online-Updateabfrage.
 - Vorschauen verwenden Beispieldaten und ändern weder Geräte noch Profile oder
   gespeicherte Meldungen. Die erforderlichen KDE-Pakete sind im ISO-Paketplan,
   der Einrichtung und im Systemupdate berücksichtigt.

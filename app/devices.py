@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QLabel, 
 from PySide6.QtGui import QColor, QPainter, QPen
 from hardware import wifi_password_valid
 from music_player import PlayerSlider
+from notifications import NoticeLabel
 
 EXAMPLE_STATUS = {
     "network": {"state": 70, "name": "Vereinsheim", "type": "802-11-wireless"},
@@ -26,22 +27,6 @@ def label(text="", style=""):
     if style:
         widget.setStyleSheet(style)
     return widget
-
-
-class NoticeLabel(QLabel):
-    """Reserve space only while an actionable message is present."""
-    def __init__(self, text=""):
-        super().__init__()
-        self.setWordWrap(True)
-        self.setTextFormat(Qt.TextFormat.PlainText)
-        self.setText(text)
-
-    def setText(self, text):
-        super().setText(text)
-        self.setVisible(bool(text))
-
-    def clear(self):
-        self.setText("")
 
 
 class SettingsOption(QRadioButton):

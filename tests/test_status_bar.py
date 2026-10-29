@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 from main import Home, SettingsDialog, NotificationsDialog, STYLE
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QPoint
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
@@ -68,15 +68,62 @@ class StatusBarTests(unittest.TestCase):
 
     def test_bell_opens_separate_window_and_preserves_apps_view(self):
         self.home.show_apps()
-        seen = []
-        def inspect_dialog():
-            dialog = self.app.activeModalWidget()
-            seen.append(type(dialog))
-            QTest.keyClick(dialog, Qt.Key.Key_Escape)
-        QTimer.singleShot(250, inspect_dialog)
         QTest.mouseClick(self.home.notification_button, Qt.MouseButton.LeftButton)
-        self.assertEqual(seen, [NotificationsDialog])
+        dialog = self.home.notification_dialog
+        self.assertIsInstance(dialog, NotificationsDialog)
+        self.assertTrue(dialog.isVisible())
+        self.assertIsNone(self.app.activeModalWidget())
+        QTest.keyClick(dialog.close_button, Qt.Key.Key_Escape)
+        self.assertFalse(dialog.isVisible())
         self.assertTrue(self.home.apps_page.isVisible())
+
+    def test_panel_is_anchored_to_bell_toggles_and_dismisses_outside(self):
+        for size in ((800, 540), (1366, 768)):
+            self.home.resize(*size)
+            self.app.processEvents()
+            QTest.mouseClick(self.home.notification_button, Qt.MouseButton.LeftButton)
+            panel = self.home.notification_dialog
+            self.app.processEvents()
+            bell = self.home.notification_button
+            edge = bell.mapTo(self.home, QPoint(bell.width(), bell.height()))
+            self.assertTrue(self.home.rect().contains(panel.geometry()))
+            self.assertEqual(panel.y(), edge.y() + 10)
+            self.assertEqual(panel.x() + panel.width(), edge.x())
+            QTest.mouseClick(bell, Qt.MouseButton.LeftButton)
+            self.assertFalse(panel.isVisible())
+            QTest.mouseClick(bell, Qt.MouseButton.LeftButton)
+            self.assertTrue(panel.isVisible())
+            QTest.mouseClick(self.home, Qt.MouseButton.LeftButton, pos=QPoint(5, 5))
+            self.assertFalse(panel.isVisible())
+
+    def test_settings_notices_are_also_in_the_bell_without_duplicates(self):
+        settings = SettingsDialog(self.home, "wifi")
+        try:
+            self.home.notifications.clear()
+            settings.page.message.setText("Verbindung fehlgeschlagen.")
+            settings.page.message.setText("Verbindung fehlgeschlagen.")
+            self.assertEqual(len(self.home.notifications.items), 1)
+            self.assertEqual(self.home.notifications.items[0]["body"], "Verbindung fehlgeschlagen.")
+            self.assertEqual(self.home.notifications.items[0]["title"], "WLAN")
+        finally:
+            settings.close()
+            settings.deleteLater()
+
+    def test_open_panel_follows_resize_and_long_history_remains_scrollable(self):
+        for index in range(100):
+            self.home.notifications.add(f"Meldung {index}", "Langer Meldungstext. " * 20)
+        self.home.show_notifications()
+        panel = self.home.notification_dialog
+        for size in ((1366, 768), (800, 540)):
+            self.home.resize(*size)
+            QTest.qWait(30)
+            self.assertTrue(self.home.rect().contains(panel.geometry()))
+            self.assertEqual(panel.scroll.horizontalScrollBar().maximum(), 0)
+            bar = panel.scroll.verticalScrollBar()
+            self.assertGreater(bar.maximum(), 0)
+            bar.setValue(bar.maximum())
+            QTest.qWait(20)
+            self.assertFalse(panel.cards[-1].visibleRegion().isEmpty())
 
     def test_notification_window_live_updates_read_clear_and_small_screen(self):
         dialog = NotificationsDialog(self.home)

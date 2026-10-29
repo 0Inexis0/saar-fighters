@@ -2,6 +2,7 @@
 """Maintenance pages and a standalone rescue window, independent of Home."""
 import json
 import sys
+from notifications import NoticeLabel
 from PySide6.QtCore import QProcess, Qt, QTimer, QRectF
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel, QMessageBox,
@@ -89,7 +90,7 @@ class MaintenancePage(QDialog):
             row.addWidget(self.action, 1)
         row.addWidget(self.reload)
         body.addLayout(row)
-        self.message = text_label("")
+        self.message = NoticeLabel()
         body.addWidget(self.message)
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
