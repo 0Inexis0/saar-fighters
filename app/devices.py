@@ -5,7 +5,7 @@ import sys
 
 from PySide6.QtCore import QObject, QProcess, Qt, QTimer, Signal, QSize, QRectF
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-                              QListWidgetItem, QPushButton, QSlider, QVBoxLayout, QWidget, QPlainTextEdit, QFileDialog, QCheckBox, QButtonGroup, QRadioButton, QFrame)
+                              QListWidgetItem, QPushButton, QSlider, QVBoxLayout, QWidget, QPlainTextEdit, QFileDialog, QCheckBox, QButtonGroup, QRadioButton)
 
 from PySide6.QtGui import QColor, QPainter, QPen
 from hardware import wifi_password_valid
@@ -722,7 +722,7 @@ class AudioOutputList(QListWidget):
 
 class AudioSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Lautstärke & Boxen",
+        super().__init__(parent, client, "Ton & Lautsprecher",
                          "Eine oder mehrere Boxen für die gleichzeitige Wiedergabe auswählen.")
         self.list = AudioOutputList()
         self.list.setAccessibleName("Audioausgänge für gleichzeitige Wiedergabe")

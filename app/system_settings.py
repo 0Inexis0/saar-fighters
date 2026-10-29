@@ -24,7 +24,7 @@ def open_module(page, name):
 class DisplaySheet(BrightnessSheet):
     def __init__(self, parent, client):
         super().__init__(parent, client)
-        self.body.itemAt(0).layout().itemAt(0).widget().setText("Bildschirm")
+        self.body.itemAt(0).layout().itemAt(0).widget().setText("Bildschirm & Helligkeit")
         self.advanced = QPushButton("Anzeige einrichten …")
         self.advanced.clicked.connect(lambda: open_module(self, "display"))
         self.body.insertWidget(1, self.advanced)
@@ -40,7 +40,7 @@ class EnergySheet(Sheet):
     )
 
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Energie", "Leistungsprofil für diesen Rechner. Änderungen werden direkt übernommen.")
+        super().__init__(parent, client, "Energie & Leistung", "Leistungsprofil für diesen Rechner. Änderungen werden direkt übernommen.")
         self.profile = SettingsChoice(self.PROFILES)
         self.profile.setAccessibleName("Linux-Leistungsprofil")
         self.body.addWidget(self.profile)
@@ -158,7 +158,7 @@ class EnergySheet(Sheet):
 
 class SystemSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Systemübersicht", "Lokale Systemdaten. Aktualisierung alle zehn Sekunden.")
+        super().__init__(parent, client, "Systeminformationen", "Lokale Systemdaten. Aktualisierung alle zehn Sekunden.")
         self.info = label("")
         self.body.addWidget(self.info)
         self.body.addStretch()
@@ -177,7 +177,7 @@ class SystemSheet(Sheet):
 
 class NotificationsSheet(Sheet):
     def __init__(self, parent, client):
-        super().__init__(parent, client, "Meldungen", "Updateergebnisse, Geräteprobleme, Akku und Speicher. Bis zu 100 lokale Einträge.")
+        super().__init__(parent, client, "Mitteilungen", "Updateergebnisse, Geräteprobleme, Akku und Speicher. Bis zu 100 lokale Einträge.")
         self.center = parent.home.notifications
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
