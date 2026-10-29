@@ -331,8 +331,6 @@ class MusicPlayerDialog(QDialog):
         self.retry.clicked.connect(lambda: self.loader.load(self.state, force=True))
         self.retry.hide()
         right.addWidget(self.retry, 0, Qt.AlignmentFlag.AlignLeft)
-        self.attribution = text_label("", 11, "#a2aa95")
-        right.addWidget(self.attribution)
         body.addWidget(self.lyrics_panel, 1)
         self.message = text_label(size=12, color="#e1cba0")
         self.message.setWordWrap(True)
@@ -577,7 +575,6 @@ class MusicPlayerDialog(QDialog):
         self.lyric_hint.setText("Die aktuelle Zeile folgt der Musik." if self.synced and self.state.get("position") is not None else
                                 "Der Player meldet keine Wiedergabeposition." if self.synced else
                                 "Songtext ohne Zeitmarken" if self.lines else "")
-        self.attribution.setText("Lyrics · " + result["source"] if result.get("source") else "")
         for _, words in self.lines:
             item = QListWidgetItem(words or "♪")
             font = QFont(self.font())
