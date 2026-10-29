@@ -31,6 +31,8 @@ INTEGRATIONS = (
 REQUIRED = (
     "system/update_packages.py",
     "system/remove_tailscale.py",
+    "system/configure_stability.py", "app/spotify_launcher.py",
+    "system/playback_status.py", "app/runtime_health.py",
     "app/maintenance.py", "system/maintenance.py", "system/saar-maintenance",
     "system/de.saarfighters.maintenance.policy", "system/de.saarfighters.Maintenance.desktop",
     "system/configure_ssh.py", "system/diagnose_firefox.py",
@@ -220,6 +222,7 @@ def main():
     # Also usable independently of pacman when system package updates fail.
     subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/maintenance.py", "install"], check=True)
     subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/remove_tailscale.py"], check=True)
+    subprocess.run(["/usr/bin/python", "-I", "/opt/saar-fighters/system/configure_stability.py"], check=True)
 
 
 if __name__ == "__main__":

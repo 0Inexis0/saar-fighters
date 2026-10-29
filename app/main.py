@@ -20,6 +20,7 @@ from hardware import status_labels
 from slideshow import IdleSlideshow
 from media_content import ArtworkLoader
 from music_player import ArtworkView, MusicPlayerDialog
+from runtime_health import record as record_health, categories as error_categories
 from maintenance import MaintenancePage
 
 HERE = Path(__file__).resolve().parent
@@ -882,7 +883,7 @@ class Home(QWidget):
     def command_for(self, action):
         if action == "spotify":
             if Path("/var/lib/flatpak/app/com.spotify.Client/current/active").exists():
-                return ["flatpak", "run", "com.spotify.Client"]
+                return [sys.executable, str(HERE / "spotify_launcher.py")]
             return ["firefox", "--new-window", "https://open.spotify.com"]
         return {
             "rocket": [sys.executable, str(HERE / "rocket.py")],
@@ -922,11 +923,17 @@ class Home(QWidget):
             return True
         process = QProcess(self)
         process.setProperty("action", action)
+        process.setProperty("reported_errors", [])
+        # Long-running apps must not accumulate unlimited unread stdout in Qt.
+        process.setStandardOutputFile(QProcess.nullDevice())
+        if action != "rocket":
+            process.readyReadStandardError.connect(lambda p=process: self.app_error_output(p))
         # GUI applications must not inherit cloud-init's or a terminal's session env.
         self.processes.append(process)
         process.errorOccurred.connect(lambda _: self.set_feedback("Die Anwendung konnte nicht gestartet werden."))
         process.finished.connect(lambda code, status, p=process: self.app_finished(p, code, status))
         process.start(command[0], command[1:])
+        record_health(action, "start")
         self.set_feedback("")
         return True
 
@@ -980,7 +987,16 @@ class Home(QWidget):
         sheet.exec()
         sheet.deleteLater()
 
+    def app_error_output(self, process):
+        text = bytes(process.readAllStandardError()).decode(errors="replace")
+        previous = set(process.property("reported_errors") or [])
+        found = error_categories(text)
+        for category in found - previous:
+            record_health(process.property("action"), "error", category=category)
+        process.setProperty("reported_errors", sorted(previous | found))
+
     def app_finished(self, process, code, status):
+        record_health(process.property("action"), "exit", code=code)
         if code != 0:
             detail = bytes(process.readAllStandardError()).decode(errors="replace").strip()
             self.set_feedback(detail if process.property("action") == "rocket" and detail else

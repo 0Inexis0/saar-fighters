@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from datetime import datetime
 
 FIELDS = {"Version", "BuildID", "CrashTime", "ProcessType", "StartupTime", "OOMAllocationSize",
           "AvailablePhysicalMemory", "TotalPhysicalMemory", "AvailableSwapMemory",
@@ -37,6 +38,7 @@ def crash_metadata(directory):
 
 
 def main():
+    import pwd
     if sys.argv[1:] or os.geteuid() != 0:
         raise SystemExit("Aufruf ohne Argumente über sudo erforderlich.")
     report = {
@@ -55,6 +57,37 @@ def main():
     # privileged reader into another account's files.
     if crash_dir.resolve() == crash_dir:
         report["crashes"] = crash_metadata(crash_dir / "pending")
+    try:
+        uid = pwd.getpwnam("saar").pw_uid
+        report["playback"] = command("runuser", "-u", "saar", "--", "env",
+            f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{uid}/bus", f"XDG_RUNTIME_DIR=/run/user/{uid}",
+            "/usr/bin/python", "-I", "/opt/saar-fighters/system/playback_status.py")
+    except KeyError:
+        report["playback"] = {"error": "desktop user unavailable"}
+    health = Path("/home/saar/.local/state/saar-fighters/app-health.jsonl")
+    report["application_events"] = []
+    if health.resolve() == health and health.is_file() and health.stat().st_size < 100000:
+        for line in health.read_text(encoding="utf-8", errors="replace").splitlines()[-30:]:
+            try:
+                row = json.loads(line)
+                # No arbitrary user-written strings may escape this privileged reader.
+                if row.get("app") not in {"spotify", "web", "youtube", "club", "rocket", "files"}:
+                    continue
+                if row.get("event") not in {"start", "exit", "error"}:
+                    continue
+                safe = {"app": row["app"], "event": row["event"]}
+                if isinstance(row.get("time"), str):
+                    try:
+                        safe["time"] = datetime.fromisoformat(row["time"]).isoformat()
+                    except ValueError:
+                        pass
+                if isinstance(row.get("code"), int):
+                    safe["code"] = row["code"]
+                if row.get("category") in {"memory", "graphics", "audio"}:
+                    safe["category"] = row["category"]
+                report["application_events"].append(safe)
+            except (ValueError, AttributeError, TypeError):
+                continue
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
