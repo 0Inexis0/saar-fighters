@@ -125,6 +125,23 @@ class MusicUiTests(unittest.TestCase):
             self.assertEqual(dialog.active_line, 2)
             action.assert_not_called()
 
+    def test_lyrics_begin_at_cover_top_and_background_flows(self):
+        dialog = self.open()
+        self.app.processEvents()
+        dialog.align_lyrics()
+        self.app.processEvents()
+        cover_top = dialog.artwork.mapTo(dialog, QPoint(0, 0)).y()
+        lyrics_top = dialog.lyrics_panel.mapTo(dialog, QPoint(0, 0)).y() + dialog.lyrics_panel.layout().contentsMargins().top()
+        self.assertAlmostEqual(cover_top, lyrics_top, delta=1)
+        dialog.phase = 0
+        first = dialog.render_ambient().copy()
+        self.assertLessEqual(first.width(), 256)
+        dialog.phase = 1.5
+        second = dialog.render_ambient().copy()
+        self.assertNotEqual(first, second)
+        self.assertGreater(len({second.pixelColor(x, y).rgb() for x in range(0, second.width(), 16)
+                                for y in range(0, second.height(), 16)}), 30)
+
     def test_visualizer_decays_on_pause_and_cleanup_stops_timers(self):
         dialog = self.open()
         dialog.bands = [1.] * len(FREQUENCIES)

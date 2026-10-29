@@ -3,8 +3,8 @@ from bisect import bisect_right
 import math
 import time
 
-from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QImage, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QFrame, QHBoxLayout, QLabel,
                               QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
                               QSlider, QStyledItemDelegate, QVBoxLayout, QWidget)
@@ -157,6 +157,8 @@ class MusicPlayerDialog(QDialog):
         self.tint = QColor("#464936")
         self.palette_colors = [QColor(c) for c in ("#8f4671", "#455b99", "#bb7958")]
         self.phase = 0.
+        self.ambient_frame = QImage()
+        self.ambient_key = None
         self.bands = [0.] * len(FREQUENCIES)
         self.targets = list(self.bands)
         self.monitor = OutputMonitor(self, preview=home.preview)
@@ -368,14 +370,64 @@ class MusicPlayerDialog(QDialog):
 
     def animate(self):
         playing = self.state.get("playing", False)
-        if playing:
-            self.phase += .006
+        self.phase += .012 if playing else .004
         if not playing or time.monotonic() - self.monitor.last_sample > .5:
             self.targets = [0.] * len(self.bands)
         self.bands = [value + (target - value) * (.55 if target > value else .12)
                       for value, target in zip(self.bands, self.targets)]
         if self.isVisible():
+            self.align_lyrics()
             self.update()
+
+    def align_lyrics(self):
+        if not self.lyrics_panel.isVisible():
+            return
+        top = max(0, self.artwork.mapTo(self.body_container, QPoint(0, 0)).y()
+                  - self.lyrics_panel.y())
+        layout = self.lyrics_panel.layout()
+        if layout.contentsMargins().top() != top:
+            layout.setContentsMargins(0, top, 0, 0)
+
+    def render_ambient(self):
+        # Render the flowing field at a small resolution and smoothly upscale.
+        # This bounds CPU cost on the club laptop, even on large monitors.
+        width = 256
+        height = max(96, round(width * self.height() / max(1, self.width())))
+        key = (height, round(self.phase / .025), tuple(c.rgb() for c in self.palette_colors))
+        if key == self.ambient_key:
+            return self.ambient_frame
+        frame = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
+        frame.fill(QColor("#181828"))
+        painter = QPainter(frame)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Screen)
+        t = self.phase
+        for index in range(6):
+            color = self.palette_colors[index % len(self.palette_colors)]
+            angle = t * (.55 + index * .08) + index * 1.73
+            x = width * (.5 + .55 * math.sin(angle))
+            y = height * (.5 + .65 * math.cos(angle * .83 + index))
+            radius = width * (.42 + .12 * math.sin(t * .7 + index))
+            painter.save()
+            painter.translate(x, y)
+            painter.rotate(index * 37 + 28 * math.sin(t + index))
+            painter.scale(1.35, .65 + .2 * math.sin(t * .6 + index))
+            field = QRadialGradient(QPointF(0, 0), radius)
+            for position, alpha in ((0, 230), (.3, 185), (.65, 75), (1, 0)):
+                stop = QColor(color)
+                stop.setAlpha(alpha)
+                field.setColorAt(position, stop)
+            painter.fillRect(QRectF(-radius, -radius, radius * 2, radius * 2), field)
+            painter.restore()
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        shade = QLinearGradient(0, 0, width, height)
+        shade.setColorAt(0, QColor(7, 10, 23, 35))
+        shade.setColorAt(.55, QColor(7, 10, 23, 70))
+        shade.setColorAt(1, QColor(7, 10, 23, 120))
+        painter.fillRect(frame.rect(), shade)
+        painter.end()
+        self.ambient_frame, self.ambient_key = frame, key
+        return frame
 
     def cleanup(self):
         self.animation.stop()
@@ -404,21 +456,8 @@ class MusicPlayerDialog(QDialog):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(), QColor("#17131e"))
-        energy = sum(self.bands[:4]) / 4
-        for index, color in enumerate(self.palette_colors):
-            angle = self.phase + index * 2.1
-            center = QPointF(self.width() * (.5 + .34 * math.sin(angle)),
-                             self.height() * (.5 + .38 * math.cos(angle * .8)))
-            glow = QRadialGradient(center, max(self.width(), self.height()) * (.7 + energy * .15))
-            bright = QColor(color)
-            bright.setAlpha(175)
-            clear = QColor(color)
-            clear.setAlpha(0)
-            glow.setColorAt(0, bright)
-            glow.setColorAt(1, clear)
-            painter.fillRect(self.rect(), glow)
-        painter.fillRect(self.rect(), QColor(10, 8, 18, 75))
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.drawImage(self.rect(), self.render_ambient())
         # A quiet spectrum at the bottom, driven exclusively by output PCM.
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(255, 255, 255, 100))
@@ -439,6 +478,7 @@ class MusicPlayerDialog(QDialog):
         self.lyrics.doItemsLayout()
         self.update_labels()
         super().resizeEvent(event)
+        QTimer.singleShot(0, self.align_lyrics)
 
     def update_labels(self):
         for label, value in ((self.title, self.state.get("title") or "Bereit für Musik"),
