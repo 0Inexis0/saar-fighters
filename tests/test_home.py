@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 from main import Home, SettingsDialog, STYLE, UpdateDialog
+from application_runner import application_command
 from maintenance import MaintenancePage
 from devices import AudioSheet, BluetoothSheet, BrightnessSheet, WifiSheet
 from PySide6.QtCore import QProcess, Qt, QTimer
@@ -369,8 +370,9 @@ class HomeTests(unittest.TestCase):
         dialog.search.setText("Rocket Launch")
         with patch("main.shutil.which", return_value="python"), patch.object(QProcess, "start") as start:
             QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
-            self.assertEqual(start.call_args.args, (sys.executable,
-                [str(Path(__file__).resolve().parents[1] / "app/rocket.py")]))
+            command = application_command([sys.executable,
+                str(Path(__file__).resolve().parents[1] / "app/rocket.py")], "rocket")
+            self.assertEqual(start.call_args.args, (command[0], command[1:]))
             self.home.show_gamemodes()
             QTest.mouseClick(dialog.tiles["rocket"], Qt.MouseButton.LeftButton)
             self.assertEqual(start.call_count, 1)

@@ -400,6 +400,12 @@ class RemoteContentTests(unittest.TestCase):
                 self.send_response(200)
                 self.end_headers()
                 try:
+                    if self.path == "/trickle":
+                        for _ in range(100):
+                            self.wfile.write(b"x")
+                            self.wfile.flush()
+                            time.sleep(.03)
+                        return
                     self.wfile.write(b"x" * 4096 if self.path == "/large" else self.path.encode())
                 except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                     pass
@@ -441,6 +447,16 @@ class RemoteContentTests(unittest.TestCase):
         loader.fetch(self.url + "/large", lambda data, status: values.append(data))
         self.wait_for(values)
         self.assertEqual(values, [b""])
+        loader.deleteLater()
+
+    def test_continuous_trickle_cannot_extend_absolute_deadline(self):
+        loader = RemoteContent()
+        values = []
+        with patch("media_content.REQUEST_TIMEOUT_MS", 150):
+            loader.fetch(self.url + "/trickle", lambda data, status: values.append(data))
+        self.wait_for(values)
+        self.assertEqual(values, [b""])
+        self.assertIsNone(loader.reply)
         loader.deleteLater()
 
 

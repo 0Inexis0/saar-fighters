@@ -326,9 +326,14 @@ class Backend:
                                                        env={**os.environ, "LC_ALL": "C"})
         try:
             out, _ = await asyncio.wait_for(process.communicate(), 8)
-        except TimeoutError:
-            process.kill()
-            await process.wait()
+        except (TimeoutError, asyncio.CancelledError):
+            # A request deadline or shutdown can cancel us before our own
+            # timeout. Reap pactl in both cases so stalled helpers cannot pile up.
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+            await process.communicate()
             raise
         if process.returncode:
             raise ValueError("Audio ist gerade nicht verfügbar. Bitte die Boxen prüfen.")
@@ -478,6 +483,7 @@ async def serve():
         await asyncio.gather(watcher, return_exceptions=True)
         for task in tasks:
             task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
         bus.disconnect()
 
 

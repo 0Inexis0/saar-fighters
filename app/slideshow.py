@@ -92,6 +92,7 @@ class IdleSlideshow(QObject):
         self.stopping = False
         self.buffer = b""
         self.process = QProcess(self)
+        self.process.setStandardErrorFile(QProcess.nullDevice())
         self.process.readyReadStandardOutput.connect(self.read_events)
         self.process.finished.connect(self.lost)
         self.process.errorOccurred.connect(lambda _: self.lost())

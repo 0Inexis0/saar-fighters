@@ -93,6 +93,7 @@ class MaintenancePage(QDialog):
         self.message = NoticeLabel()
         body.addWidget(self.message)
         self.output = QPlainTextEdit()
+        self.output.setMaximumBlockCount(2000)
         self.output.setReadOnly(True)
         self.output.setMaximumHeight(125)
         self.output.hide()

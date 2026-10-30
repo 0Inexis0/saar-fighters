@@ -22,6 +22,7 @@ from media_content import ArtworkLoader
 from music_player import ArtworkView, MusicPlayerDialog, PlayerSlider, clock_text
 from runtime_health import record as record_health, categories as error_categories
 from browser import browser_command
+from application_runner import application_command
 from maintenance import MaintenancePage
 from devices import NoticeLabel
 from system_settings import DisplaySheet, EnergySheet, SystemSheet
@@ -428,6 +429,7 @@ class UpdateDialog(QDialog):
         layout.addStretch()
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self.output.setMaximumBlockCount(2000)
         self.process.readyReadStandardOutput.connect(self.read_output)
         self.process.finished.connect(self.finished_update)
         self.process.errorOccurred.connect(self.process_error)
@@ -1111,6 +1113,7 @@ class Home(QWidget):
         return self.launch(application.action)
 
     def start_application(self, command, action):
+        command = application_command(command, action)
         if not shutil.which(command[0]):
             self.set_feedback("Diese Anwendung fehlt. Bitte die Vereinsadministration kontaktieren.")
             return False
@@ -1123,14 +1126,23 @@ class Home(QWidget):
         process.setStandardOutputFile(QProcess.nullDevice())
         if action != "rocket":
             process.readyReadStandardError.connect(lambda p=process: self.app_error_output(p))
-        # GUI applications must not inherit cloud-init's or a terminal's session env.
+        # Qt owns only the service waiter; systemd owns the desktop application.
         self.processes.append(process)
-        process.errorOccurred.connect(lambda _: self.set_feedback("Die Anwendung konnte nicht gestartet werden."))
+        process.errorOccurred.connect(lambda error, p=process: self.app_failed(p, error))
         process.finished.connect(lambda code, status, p=process: self.app_finished(p, code, status))
         process.start(command[0], command[1:])
-        record_health(action, "start")
         self.set_feedback("")
         return True
+
+    def app_failed(self, process, error):
+        self.set_feedback("Die Anwendung konnte nicht gestartet werden.")
+        # FailedToStart does not emit finished; stale Rocket entries prevented
+        # retries forever and every failed click retained another QObject.
+        if error == QProcess.ProcessError.FailedToStart:
+            record_health(process.property("action"), "exit", code=127)
+            if process in self.processes:
+                self.processes.remove(process)
+            process.deleteLater()
 
     def set_feedback(self, text):
         self.feedback.setText(text)
@@ -1201,8 +1213,7 @@ class Home(QWidget):
         process.setProperty("reported_errors", sorted(previous | found))
 
     def app_finished(self, process, code, status):
-        record_health(process.property("action"), "exit", code=code)
-        if code != 0:
+        if code != 0 or status == QProcess.ExitStatus.CrashExit:
             detail = bytes(process.readAllStandardError()).decode(errors="replace").strip()
             self.set_feedback(detail if process.property("action") == "rocket" and detail else
                               "Die App wurde mit einem Fehler beendet. Bitte erneut versuchen.")

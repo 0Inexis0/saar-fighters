@@ -36,7 +36,7 @@ REQUIRED = (
     "system/remove_tailscale.py",
     "system/configure_stability.py", "app/spotify_launcher.py",
     "system/playback_status.py", "app/runtime_health.py",
-    "system/configure_browser.py", "app/browser.py",
+    "system/configure_browser.py", "app/browser.py", "app/application_runner.py",
     "app/maintenance.py", "system/maintenance.py", "system/saar-maintenance",
     "system/de.saarfighters.maintenance.policy", "system/de.saarfighters.Maintenance.desktop",
     "system/configure_ssh.py", "system/diagnose_firefox.py",

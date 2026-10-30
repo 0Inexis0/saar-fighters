@@ -152,6 +152,7 @@ class DeviceClient(QObject):
         self.stopping = False
         self.status_pending = False
         self.process = QProcess(self)
+        self.process.setStandardErrorFile(QProcess.nullDevice())
         self.process.readyReadStandardOutput.connect(self.read)
         self.process.errorOccurred.connect(lambda _: self.lost())
         self.process.finished.connect(lambda *_: self.lost())

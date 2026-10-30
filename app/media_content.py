@@ -5,9 +5,11 @@ from pathlib import Path
 import re
 import time
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, QSize, Qt, QUrl, QUrlQuery, Signal
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, QSize, Qt, QTimer, QUrl, QUrlQuery, Signal
 from PySide6.QtGui import QImageReader, QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+
+REQUEST_TIMEOUT_MS = 10000
 
 
 def remember(cache, key, value, limit=12):
@@ -32,19 +34,26 @@ class RemoteContent(QObject):
     def fetch(self, url, callback):
         self.cancel()
         request = QNetworkRequest(QUrl(url))
-        request.setTransferTimeout(10000)
+        request.setTransferTimeout(REQUEST_TIMEOUT_MS)
         request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute,
                              QNetworkRequest.RedirectPolicy.NoLessSafeRedirectPolicy)
         request.setRawHeader(b"User-Agent", b"Saar-Fighters/0.2 (https://github.com/0Inexis0/saar-fighters)")
         reply = self.network.get(request)
         self.reply = reply
         reply.setReadBufferSize(self.limit + 1)
+        # Qt's transfer timeout measures inactivity. A slow trickle otherwise
+        # keeps a request and its loading state alive indefinitely.
+        deadline = QTimer(reply)
+        deadline.setSingleShot(True)
+        deadline.timeout.connect(reply.abort)
+        deadline.start(REQUEST_TIMEOUT_MS)
 
         def bound():
             if reply.bytesAvailable() > self.limit:
                 reply.abort()
 
         def finished():
+            deadline.stop()
             current = self.reply is reply
             if current:
                 self.reply = None
@@ -117,7 +126,7 @@ def parse_lrc(text):
     if not isinstance(text, str):
         return []
     text = text[:100000]
-    offset = re.search(r"\[offset:([+-]?\d+)\]", text, re.I)
+    offset = re.search(r"\[offset:([+-]?[0-9]{1,9})\]", text, re.I)
     shift = int(offset[1]) / 1000 if offset else 0
     lines = []
     for line in text.splitlines()[:1500]:

@@ -58,6 +58,11 @@ class CustomUpdateTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "missile.js"):
             update.validate_checkout(self.checkout)
 
+    def test_missing_application_runner_rejects_incomplete_update(self):
+        (self.checkout / "app/application_runner.py").unlink()
+        with self.assertRaisesRegex(RuntimeError, "application_runner.py"):
+            update.validate_checkout(self.checkout)
+
     def test_mid_install_failure_restores_all_old_files(self):
         rename = Path.rename
         def fail(source, destination):

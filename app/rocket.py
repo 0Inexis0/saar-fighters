@@ -191,14 +191,20 @@ def ensure_server():
         return
     options = {"start_new_session": True} if os.name != "nt" else {
         "creationflags": subprocess.CREATE_NO_WINDOW}
-    child = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--serve"],
+    command = [sys.executable, str(Path(__file__).resolve()), "--serve"]
+    if sys.platform == "linux":
+        from application_runner import session_command
+        # The server must also survive the short-lived browser launcher service.
+        command = session_command(command, wait=False)
+    child = subprocess.Popen(command,
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, **options)
     deadline = time.monotonic() + 8
     while time.monotonic() < deadline:
         if server_ready():
             return
-        if child.poll() is not None:
+        code = child.poll()
+        if code is not None and (sys.platform != "linux" or code != 0):
             break
         time.sleep(0.1)
     raise RuntimeError("Rocket Launch konnte nicht starten. Der lokale Port 18741 ist möglicherweise belegt.")
